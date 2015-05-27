@@ -96,7 +96,7 @@ public class WikiAssocMiner {
 					// get title
 					IndexableField arr[] = indexReader.document(hits[i].doc).getFields("title");					
 					
-					seeWriter.write("@attribute \""+arr[0].stringValue()+"\"{"+docno+"}\n");
+					seeWriter.write("@attribute \""+arr[0].stringValue().replace("\\", "\\\\")+"\"{"+docno+"}\n");
 					
 					wikiTopics.put(arr[0].stringValue().toLowerCase(), new Integer(docno));
 				}
