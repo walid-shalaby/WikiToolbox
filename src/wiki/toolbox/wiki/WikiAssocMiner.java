@@ -112,7 +112,7 @@ public class WikiAssocMiner {
 					String title = arr[0].stringValue();
 					titles.add(title);
 					
-					Integer docno = wikiTopics.get(title.toCharArray());
+					Integer docno = wikiTopics.get(title.toLowerCase());
 					if(docno==null) {
 						System.out.println(title+" -- invalid title");
 						continue;
@@ -130,7 +130,7 @@ public class WikiAssocMiner {
 					for(j=0; j<arr.length; j++) {
 						titles.add(arr[j].stringValue());
 						
-						docno = wikiTopics.get(arr[j].stringValue().toCharArray());
+						docno = wikiTopics.get(arr[j].stringValue().toLowerCase());
 						if(docno!=null)
 							seeWriter.write(","+docno.toString());
 						else 
