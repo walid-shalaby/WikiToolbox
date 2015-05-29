@@ -96,9 +96,9 @@ public class WikiAssocMiner {
 					// get title
 					IndexableField arr[] = indexReader.document(hits[i].doc).getFields("title");					
 					
-					seeWriter.write("@attribute \""+arr[0].stringValue().replace("\\", "\\\\")+"\"{"+docno+"}\n");
+					seeWriter.write("@attribute \""+arr[0].stringValue().replace("\\", "\\\\")+"\" {f,t}\n");
 					
-					wikiTopics.put(arr[0].stringValue().toLowerCase(), new Integer(docno));
+					wikiTopics.put(arr[0].stringValue().toLowerCase(), i);
 				}
 				
 				seeWriter.write("\n\n@data\n");
@@ -112,8 +112,8 @@ public class WikiAssocMiner {
 					String title = arr[0].stringValue();
 					titles.add(title);
 					
-					Integer docno = wikiTopics.get(title.toLowerCase());
-					if(docno==null) {
+					Integer idx = wikiTopics.get(title.toLowerCase());
+					if(idx==null) {
 						System.out.println(title+" -- invalid title");
 						continue;
 					}
@@ -123,21 +123,21 @@ public class WikiAssocMiner {
 					arr = indexReader.document(hits[i].doc).getFields("see_also");
 					
 					// write original docno
-					if(docno!=null && arr.length>0)
-						seeWriter.write(docno.toString());
+					if(idx!=null && arr.length>0)
+						seeWriter.write("{"+idx.toString()+" t");
 					
 					// write see also
 					for(j=0; j<arr.length; j++) {
 						titles.add(arr[j].stringValue());
 						
-						docno = wikiTopics.get(arr[j].stringValue().toLowerCase());
-						if(docno!=null)
-							seeWriter.write(","+docno.toString());
+						idx = wikiTopics.get(arr[j].stringValue().toLowerCase());
+						if(idx!=null)
+							seeWriter.write(","+idx.toString()+" t");
 						else 
 							System.out.println(arr[j].stringValue()+" -- invalid see_also with "+title);
 					}
 					if(arr.length>0)
-						seeWriter.write("\n");
+						seeWriter.write("}\n");
 					
 					updateCounts(titles, wikiAssociations, wikiTopicsCounts);
 				}
