@@ -10,7 +10,10 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.sql.Array;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
@@ -27,6 +30,8 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.ArrayUtil;
+import org.apache.lucene.util.CollectionUtil;
 import org.apache.lucene.util.Version;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -96,9 +101,9 @@ public class WikiAssocMiner {
 					// get title
 					IndexableField arr[] = indexReader.document(hits[i].doc).getFields("title");					
 					
-					seeWriter.write("@attribute \""+arr[0].stringValue().replace("\\", "\\\\")+"\"{"+docno+"}\n");
+					seeWriter.write("@attribute \""+arr[0].stringValue().replace("\\", "\\\\")+"\" {f,t}\n");
 					
-					wikiTopics.put(arr[0].stringValue().toLowerCase(), new Integer(docno));
+					wikiTopics.put(arr[0].stringValue().toLowerCase(), i);
 				}
 				
 				seeWriter.write("\n\n@data\n");
@@ -112,8 +117,8 @@ public class WikiAssocMiner {
 					String title = arr[0].stringValue();
 					titles.add(title);
 					
-					Integer docno = wikiTopics.get(title.toLowerCase());
-					if(docno==null) {
+					Integer idx = wikiTopics.get(title.toLowerCase());
+					if(idx==null) {
 						System.out.println(title+" -- invalid title");
 						continue;
 					}
@@ -122,23 +127,35 @@ public class WikiAssocMiner {
 					int j = 0;
 					arr = indexReader.document(hits[i].doc).getFields("see_also");
 					
-					// write original docno
-					if(docno!=null && arr.length>0)
-						seeWriter.write(docno.toString());
-					
-					// write see also
-					for(j=0; j<arr.length; j++) {
-						titles.add(arr[j].stringValue());
-						
-						docno = wikiTopics.get(arr[j].stringValue().toLowerCase());
-						if(docno!=null)
-							seeWriter.write(","+docno.toString());
-						else 
-							System.out.println(arr[j].stringValue()+" -- invalid see_also with "+title);
+					if(arr.length>0) {
+						// get see also
+						ArrayList<Integer> idxs = new ArrayList<Integer>(arr.length);
+						for(j=0; j<arr.length; j++) {
+							titles.add(arr[j].stringValue());
+							
+							Integer sidx = wikiTopics.get(arr[j].stringValue().toLowerCase());
+							if(sidx!=null)
+								idxs.add(sidx);
+							else
+								System.out.println(arr[j].stringValue()+" -- invalid see_also with "+title);
+						}
+						if(idxs.size()>0) {
+							// add original title
+							idxs.add(idx);
+							
+							// sort out indices
+							Integer[] sidxs = new Integer[idxs.size()];
+							sidxs = idxs.toArray(sidxs);
+							Arrays.sort(sidxs);
+							
+							seeWriter.write("{"+sidxs[0].toString()+" t");
+							for(j=1; j<sidxs.length; j++)
+								if(sidxs[j-1]!=sidxs[j]) // there are some duplicates!
+									seeWriter.write(","+sidxs[j].toString()+" t");
+							
+							seeWriter.write("}\n");
+						}
 					}
-					if(arr.length>0)
-						seeWriter.write("\n");
-					
 					updateCounts(titles, wikiAssociations, wikiTopicsCounts);
 				}
 				
