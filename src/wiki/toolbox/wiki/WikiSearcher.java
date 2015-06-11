@@ -30,8 +30,6 @@ public class WikiSearcher {
 	 */
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
-		int maxhits;
-		
 		Scanner reader = new Scanner(System.in);
 		
 		// get source path
@@ -44,8 +42,12 @@ public class WikiSearcher {
 		
 		// get index path
 		System.out.print("Enter maximum hits: ");		
-		maxhits = Integer.parseInt(reader.nextLine());
+		int maxhits = Integer.parseInt(reader.nextLine());
 		
+		// get index path
+		System.out.print("Drop parentheses (y/n): ");		
+		boolean noparen = reader.nextLine().compareToIgnoreCase("y")==0;
+				
 		try {
 			// open the index
 			IndexReader indexReader = DirectoryReader.open(FSDirectory.open(new File(indexPath)));
@@ -68,8 +70,16 @@ public class WikiSearcher {
 			if(topDocs.totalHits > 0) {
 				ScoreDoc[] hits = topDocs.scoreDocs;
 				System.out.println("Results ("+hits.length+") :)");
+				String title;
+				int indx;
 				for(int i = 0 ; i < hits.length; i++) {
-					System.out.println("doc(" + hits[i].doc + "), score=" + hits[i].score + ", length=" + indexReader.document(hits[i].doc).getField("text").stringValue().length() + " --> " + indexReader.document(hits[i].doc).getField("title").stringValue() + " :::" + indexReader.document(hits[i].doc).getField("text").stringValue());
+					title = indexReader.document(hits[i].doc).getField("title").stringValue();
+					if(noparen && (indx=title.indexOf(" ("))!=-1)
+						title = indexReader.document(hits[i].doc).getField("title").stringValue().substring(0,indx);
+											
+					if(indexReader.document(hits[i].doc).getField("title_ne").stringValue().compareTo("O")==0)
+						System.out.println(title);
+					//System.out.println("doc(" + hits[i].doc + "), score=" + hits[i].score + ", length=" + indexReader.document(hits[i].doc).getField("text").stringValue().length() + " --> " + indexReader.document(hits[i].doc).getField("title").stringValue() + " :::" + indexReader.document(hits[i].doc).getField("text").stringValue());
 					//IndexableField arr[] = indexReader.document(hits[i].doc).getFields("title");
 					//for (IndexableField f : arr) 
 					//	System.out.println(f.stringValue());

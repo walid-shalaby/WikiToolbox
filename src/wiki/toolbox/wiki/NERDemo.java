@@ -1,3 +1,5 @@
+package wiki.toolbox.wiki;
+
 import edu.stanford.nlp.ie.AbstractSequenceClassifier;
 import edu.stanford.nlp.ie.crf.*;
 import edu.stanford.nlp.io.IOUtils;
@@ -38,7 +40,7 @@ public class NERDemo {
 
   public static void main(String[] args) throws Exception {
 
-    String serializedClassifier = "classifiers/english.all.3class.distsim.crf.ser.gz";
+    String serializedClassifier = "ner/classifiers/english.all.3class.distsim.crf.ser.gz";
 
     if (args.length > 0) {
       serializedClassifier = args[0];
