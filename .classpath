@@ -2,11 +2,12 @@
 <classpath>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.7"/>
-	<classpathentry kind="lib" path="/home/wshalaby/program-files/lucene-4.6.0/core/lucene-core-4.6.0.jar"/>
-	<classpathentry kind="lib" path="/home/wshalaby/program-files/lucene-4.6.0/analysis/common/lucene-analyzers-common-4.6.0.jar"/>
-	<classpathentry kind="lib" path="/home/wshalaby/program-files/lucene-4.6.0/queryparser/lucene-queryparser-4.6.0.jar"/>
-	<classpathentry kind="lib" path="/home/wshalaby/program-files/lucene-4.6.0/queries/lucene-queries-4.6.0.jar"/>
-	<classpathentry kind="lib" path="/home/wshalaby/work/github/opensource/stanford-ner-2015-01-30/stanford-ner-3.5.1.jar"/>
-	<classpathentry kind="lib" path="/home/wshalaby/program-files/gradle-2.2.1/lib/commons-lang-2.6.jar"/>
+	<classpathentry kind="lib" path="D:/CB/git/WikiToolbox-git/WikiToolbox/libs/commons-lang-2.6.jar"/>
+	<classpathentry kind="lib" path="D:/CB/git/WikiToolbox-git/WikiToolbox/libs/lucene-analyzers-common-4.10.2-SNAPSHOT.jar"/>
+	<classpathentry kind="lib" path="D:/CB/git/WikiToolbox-git/WikiToolbox/libs/lucene-core-4.10.2-SNAPSHOT.jar"/>
+	<classpathentry kind="lib" path="D:/CB/git/WikiToolbox-git/WikiToolbox/libs/lucene-highlighter-4.10.2-SNAPSHOT.jar"/>
+	<classpathentry kind="lib" path="D:/CB/git/WikiToolbox-git/WikiToolbox/libs/lucene-queries-4.10.2-SNAPSHOT.jar"/>
+	<classpathentry kind="lib" path="D:/CB/git/WikiToolbox-git/WikiToolbox/libs/lucene-queryparser-4.10.2-SNAPSHOT.jar"/>
+	<classpathentry kind="lib" path="D:/CB/git/WikiToolbox-git/WikiToolbox/libs/stanford-ner-3.5.1.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

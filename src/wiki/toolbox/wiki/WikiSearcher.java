@@ -19,10 +19,8 @@ import java.util.Scanner;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.document.Document;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
@@ -86,14 +84,12 @@ public class WikiSearcher {
 		}
 
 		// get text flag
-		System.out.print("Display text (y/n: ");		
+		System.out.print("Display text (y/n): ");		
 		boolean display_text = reader.nextLine().compareToIgnoreCase("y")==0;
-		boolean display_highlight = false;
-		if(display_text) {
-			// get highlights flag
-			System.out.print("Display highlights (y/n): ");		
-			display_highlight = reader.nextLine().compareToIgnoreCase("y")==0;			
-		}
+		
+		// get highlights flag
+		System.out.print("Display highlights (y/n): ");		
+		boolean display_highlight = reader.nextLine().compareToIgnoreCase("y")==0;			
 		
 		try {
 			// open output path
@@ -130,23 +126,24 @@ public class WikiSearcher {
 				}
 				for(int i = 0 ; i < hits.length; i++) {
 					if(display_docid) {
-						out.write(String.format("%d\t", hits[i].doc));
+						out.write(String.format("\t%d", hits[i].doc));
 					}
 					if(display_score) {
-						out.write(String.format("%f\t", hits[i].score));
+						out.write(String.format("\t%f", hits[i].score));
 					}
 					if(display_length) {
-						out.write(indexReader.document(hits[i].doc).getField("length").stringValue()+"\t");
+						out.write("\t"+indexReader.document(hits[i].doc).getField("length").stringValue());
 					}
 					if(display_title) {
 						title = indexReader.document(hits[i].doc).getField("title").stringValue();
 						if(noparen && (indx=title.indexOf(" ("))!=-1)
 							title = indexReader.document(hits[i].doc).getField("title").stringValue().substring(0,indx);
-						out.write(title+"\t");
+						out.write("\t"+title);
 					}
-					if(display_text) {
+					if(display_text || display_highlight) {
 						String text = indexReader.document(hits[i].doc).getField("text").stringValue();
-						out.write(text+"\t");
+						if(display_text)
+							out.write("\t"+text);
 						if(display_highlight) {
 							TokenStream tokenStream = TokenSources.getAnyTokenStream(searcher.getIndexReader(), 
 									hits[i].doc, "text", stdAnalyzer);
@@ -155,7 +152,7 @@ public class WikiSearcher {
 								frag = highlighter.getBestTextFragments(tokenStream, text, false, 10);
 								for (int j = 0; j < frag.length; j++) {
 									if ((frag[j] != null) && (frag[j].getScore() > 0)) {
-										System.out.println((frag[j].toString()));
+										out.write("\t"+(frag[j].toString()));
 									}
 								}
 							} catch (InvalidTokenOffsetsException e) {
