@@ -49,13 +49,29 @@ public class WikiSearcher {
 		System.out.print("Enter index path: ");		
 		String indexPath = reader.nextLine();
 		
-		// get source path
+		// get search query
 		System.out.print("Enter search query: ");		
-		String queryTxt = reader.nextLine();
+		String query_txt = reader.nextLine();
 
-		// get source path
+		// get output path
 		System.out.print("Enter output path: ");		
 		String outpath = reader.nextLine();
+		
+		// get search field
+		System.out.print("Enter search field: ");		
+		String search_field = reader.nextLine();
+
+		// get enable title search flag
+		System.out.print("Enable title search (y/n): ");		
+		boolean enable_title_search = reader.nextLine().compareTo("y")==0;
+		
+		// get enable title search flag
+		System.out.print("Enclose search query with quotes (y/n): ");		
+		String quotes = reader.nextLine().compareTo("y")==0? "\"":"";
+
+		// get min. doc. length
+		System.out.print("Min. doc. length: ");		
+		int minDocLen = Integer.parseInt(reader.nextLine());
 		
 		// get maximum hits
 		System.out.print("Enter maximum hits (0 for max. allowed): ");		
@@ -103,8 +119,15 @@ public class WikiSearcher {
 			Query query = null;
 			try {
 				
-				parser.setAllowLeadingWildcard(true);				
-				query = parser.parse(queryTxt);
+				parser.setAllowLeadingWildcard(true);
+				String query_str = "padded_length:["+String.format("%09d", minDocLen)+" TO *]";
+		        if(enable_title_search) {
+		          query_str += " AND (title:"+quotes+query_txt+quotes+" OR "+search_field+":"+quotes+query_txt+quotes+")";
+		        }
+		        else {
+		          query_str += " AND ("+search_field+":"+quotes+query_txt+quotes+")";
+		        }
+				query = parser.parse(query_str);
 			} catch (ParseException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();

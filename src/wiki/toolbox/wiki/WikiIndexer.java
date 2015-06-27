@@ -150,7 +150,7 @@ public class WikiIndexer {
 				String line = fr.readLine();
 				while(line!=null) {
 					String tokens[] = line.split("\\|");
-					if(tokens.length==2) {
+					if(tokens.length==3) {
 						HashSet<String> s;
 						if(anchorsDic.containsKey(tokens[0])==true) // title already there
 							s = anchorsDic.get(tokens[0]);						
@@ -349,7 +349,7 @@ public class WikiIndexer {
 								// add all possible anchors as candidate titles
 								Iterator<String> anchors = anchorsDic.get(title).iterator();
 								while(anchors.hasNext()) {
-									doc.add(new Field("title", anchors.next(), Field.Store.YES, Field.Index.ANALYZED));
+									doc.add(new Field("title_anchors", anchors.next(), Field.Store.YES, Field.Index.ANALYZED));
 								}								
 							}
 							if(NEMap!=null && NEMap.containsKey(title)) { 

@@ -66,9 +66,25 @@ public class WikiContextGenerator {
 		System.out.print("Enter input path: ");		
 		String inpath = reader.nextLine();
 
-		// get source path
+		// get output path
 		System.out.print("Enter output path: ");		
 		String outpath = reader.nextLine();
+		
+		// get search field
+		System.out.print("Enter search field: ");		
+		String search_field = reader.nextLine();
+
+		// get enable title search flag
+		System.out.print("Enable title search (y/n): ");		
+		boolean enable_title_search = reader.nextLine().compareTo("y")==0;
+		
+		// get enable title search flag
+		System.out.print("Enclose search query with quotes (y/n): ");		
+		String quotes = reader.nextLine().compareTo("y")==0? "\"":"";
+		
+		// get min. doc. length
+		System.out.print("Min. doc. length: ");		
+		int minDocLen = Integer.parseInt(reader.nextLine());
 		
 		// get maximum hits
 		System.out.print("Enter maximum hits (0 for max. allowed): ");		
@@ -110,7 +126,6 @@ public class WikiContextGenerator {
 			IndexSearcher searcher = new IndexSearcher(indexReader);
 			Analyzer stdAnalyzer = new StandardAnalyzer(Version.LUCENE_46);
 			QueryParser parser = new QueryParser(Version.LUCENE_46, "text", stdAnalyzer); //
-			Query query = null;
 			
 			// open source file
 			BufferedReader in = new BufferedReader(new FileReader(inpath));
@@ -157,7 +172,18 @@ public class WikiContextGenerator {
 					if(f.exists()) {
 						out.write(sample+"\n");
 						try {
-							query = parser.parse(sample);
+							String highlight_query_str = search_field+":"+quotes+sample+quotes;
+						    String query_str = "padded_length:["+String.format("%09d", minDocLen)+" TO *]";
+					        if(enable_title_search) {
+					          query_str += " AND (title:"+quotes+sample+quotes+" OR "+search_field+":"+quotes+sample+quotes+")";
+					        }
+					        else {
+					          query_str += " AND ("+search_field+":"+quotes+sample+quotes+")";
+					        }
+						
+							Query query = parser.parse(query_str);
+							Query highlight_query = parser.parse(highlight_query_str);
+							
 							System.out.println("Searching (" + query + ").....");
 							TopDocs topDocs = searcher.search(query, maxhits!=0?maxhits:Integer.MAX_VALUE);
 							if(topDocs.totalHits > 0) {
@@ -169,7 +195,7 @@ public class WikiContextGenerator {
 								Highlighter highlighter = null;
 								if(display_highlight) {
 									htmlFormatter = new SimpleHTMLFormatter();
-									highlighter = new Highlighter(htmlFormatter, new QueryScorer(query));
+									highlighter = new Highlighter(htmlFormatter, new QueryScorer(highlight_query));
 								}
 								for(int i = 0 ; i < hits.length; i++) {
 									if(display_docid) {
