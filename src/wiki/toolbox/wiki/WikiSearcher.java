@@ -21,6 +21,7 @@ import org.apache.lucene.analysis.TokenStream;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.index.IndexableField;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
@@ -107,6 +108,17 @@ public class WikiSearcher {
 		System.out.print("Display highlights (y/n): ");		
 		boolean display_highlight = reader.nextLine().compareToIgnoreCase("y")==0;			
 		
+		// get categories flag
+		System.out.print("Display categories (y/n): ");		
+		boolean display_categories = reader.nextLine().compareToIgnoreCase("y")==0;
+		
+		// get number of categories to display
+		int num_categories = 0;
+		if(display_categories) {
+			System.out.print("Enter maximum categories (0 for max. allowed): ");		
+			num_categories = Integer.parseInt(reader.nextLine());
+		}
+		
 		try {
 			// open output path
 			FileWriter out = new FileWriter(new File(outpath));
@@ -139,7 +151,7 @@ public class WikiSearcher {
 			if(topDocs.totalHits > 0) {
 				ScoreDoc[] hits = topDocs.scoreDocs;
 				System.out.println("Results ("+hits.length+") :)");
-				String title;
+				String data;
 				int indx;
 				SimpleHTMLFormatter htmlFormatter = null;
 				Highlighter highlighter = null;
@@ -158,10 +170,10 @@ public class WikiSearcher {
 						out.write("\t"+indexReader.document(hits[i].doc).getField("length").stringValue());
 					}
 					if(display_title) {
-						title = indexReader.document(hits[i].doc).getField("title").stringValue();
-						if(noparen && (indx=title.indexOf(" ("))!=-1)
-							title = indexReader.document(hits[i].doc).getField("title").stringValue().substring(0,indx);
-						out.write("\t"+title);
+						data = indexReader.document(hits[i].doc).getField("title").stringValue();
+						if(noparen && (indx=data.indexOf(" ("))!=-1)
+							data = indexReader.document(hits[i].doc).getField("data").stringValue().substring(0,indx);
+						out.write("\t"+data);
 					}
 					if(display_text || display_highlight) {
 						String text = indexReader.document(hits[i].doc).getField("text").stringValue();
@@ -183,6 +195,12 @@ public class WikiSearcher {
 								e.printStackTrace();
 							}//highlighter.getBestFragments(tokenStream, text, 3, "...");
 							
+						}
+					}
+					if(display_categories) {
+						IndexableField categories[] = indexReader.document(hits[i].doc).getFields("category");
+						for(int j=0; j<categories.length && (num_categories==0 || j<num_categories); j++){ 
+							out.write("\t"+categories[j].stringValue());
 						}
 					}
 					
