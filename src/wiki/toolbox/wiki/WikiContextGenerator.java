@@ -215,7 +215,6 @@ public class WikiContextGenerator {
 					
 					// loop on input records
 					int lineNo = 0;
-					int threads = 0;
 					String line = in.readLine();
 					while(line!=null)
 					{
@@ -249,10 +248,12 @@ public class WikiContextGenerator {
 							samples =  new String[cfg.blockSize];
 							labels = new String[cfg.blockSize];
 							lineNo = 0;
-							threads++;
 						}
 						line = in.readLine();
 					}
+					if(lineNo>0)
+						executor.execute(new ContextGeneratorThread(samples, labels, cfg, indexReader, searcher));
+					
 					in.close();
 					
 					// wait for all threads to complete.
