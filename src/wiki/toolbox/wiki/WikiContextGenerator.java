@@ -22,6 +22,11 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.Scanner;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutorCompletionService;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
@@ -50,6 +55,136 @@ import org.apache.lucene.search.highlight.TokenSources;
  * represent its context in wikipedia. Found context is written to a file under 
  * folder named "class label"
  */
+
+class ContextGeneratorThread implements Runnable {
+	WikiSearchConfig cfg;
+	Analyzer stdAnalyzer;
+	QueryParser parser;
+	IndexReader indexReader;
+	IndexSearcher searcher;
+	String[] samples;
+	String[] labels;
+	public ContextGeneratorThread(String[] s, String[] l, 
+			WikiSearchConfig c, IndexReader r, IndexSearcher sh) {
+		// TODO Auto-generated constructor stub
+		cfg = c;
+		samples = s;
+		labels = l;
+		stdAnalyzer = new StandardAnalyzer(Version.LUCENE_46);
+		parser = new QueryParser(Version.LUCENE_46, "text", stdAnalyzer); //
+		indexReader = r;
+		searcher = sh;
+	}
+	
+	@Override
+	public void run() {
+		// open output file
+		for(int s=0; s<samples.length; s++)
+		{
+			String sample = samples[s];
+			String label = labels[s];
+			try {
+				File f = new File(cfg.outPath+"/"+label+"/"+sample);
+				FileWriter out = new FileWriter(f);
+				if(f.exists()) {
+					out.write(sample+"\n");
+					try {
+						String highlight_query_str = cfg.searchField+":"+cfg.quotes+sample+cfg.quotes;
+					    String query_str = "padded_length:["+String.format("%09d", cfg.minDocLen)+" TO *]";
+				        if(cfg.enableTitleSearch) {
+				          query_str += " AND (title:"+cfg.quotes+sample+cfg.quotes+" OR "+cfg.searchField+":"+cfg.quotes+sample+cfg.quotes+")";
+				        }
+				        else {
+				          query_str += " AND ("+cfg.searchField+":"+cfg.quotes+sample+cfg.quotes+")";
+				        }
+					
+						Query query = parser.parse(query_str);
+						Query highlight_query = parser.parse(highlight_query_str);
+						
+						if(cfg.debug==true)
+							System.out.println("Searching (" + query + ").....");
+						TopDocs topDocs = searcher.search(query, cfg.maxHits!=0?cfg.maxHits:Integer.MAX_VALUE);
+						if(topDocs.totalHits > 0) {
+							ScoreDoc[] hits = topDocs.scoreDocs;
+							if(cfg.debug==true)
+								System.out.println("Results ("+hits.length+") :)");
+							String data;
+							int indx;
+							SimpleHTMLFormatter htmlFormatter = null;
+							Highlighter highlighter = null;
+							if(cfg.displayHighlights) {
+								htmlFormatter = new SimpleHTMLFormatter();
+								highlighter = new Highlighter(htmlFormatter, new QueryScorer(highlight_query));
+							}
+							for(int i = 0 ; i < hits.length; i++) {
+								if(cfg.displayDID) {
+									out.write(String.format("\t%d", hits[i].doc));
+								}
+								if(cfg.displayScore) {
+									out.write(String.format("\t%f", hits[i].score));
+								}
+								if(cfg.displayLen) {
+									out.write("\t"+indexReader.document(hits[i].doc).getField("length").stringValue());
+								}
+								if(cfg.displayTitle) {
+									data = indexReader.document(hits[i].doc).getField("title").stringValue();
+									if(cfg.removeParen && (indx=data.indexOf(" ("))!=-1)
+										data = indexReader.document(hits[i].doc).getField("title").stringValue().substring(0,indx);
+									out.write("\t"+data);
+								}
+								if(cfg.displayTxt || cfg.displayHighlights) {
+									String text = indexReader.document(hits[i].doc).getField("text").stringValue();
+									if(cfg.displayTxt)
+										out.write("\t"+text);
+									if(cfg.displayHighlights) {
+										TokenStream tokenStream = TokenSources.getAnyTokenStream(searcher.getIndexReader(), 
+												hits[i].doc, "text", stdAnalyzer);
+										TextFragment[] frag;
+										try {
+											frag = highlighter.getBestTextFragments(tokenStream, text, false, 10);
+											for (int j = 0; j < frag.length; j++) {
+												if ((frag[j] != null) && (frag[j].getScore() > 0)) {
+													out.write("\t"+(frag[j].toString()));
+													out.flush();
+												}
+											}
+										} catch (InvalidTokenOffsetsException e) {
+											// TODO Auto-generated catch block
+											e.printStackTrace();
+										}//highlighter.getBestFragments(tokenStream, text, 3, "...");
+										
+									}
+								}
+								if(cfg.displayCategories) {
+									IndexableField categories[] = indexReader.document(hits[i].doc).getFields("category");
+									for(int j=0; j<categories.length && (cfg.numCategories==0 || j<cfg.numCategories); j++){ 
+										out.write("\t"+categories[j].stringValue());
+									}
+								}
+								
+								out.write(System.lineSeparator()+System.lineSeparator()+System.lineSeparator());
+							}
+						}
+						else if(cfg.debug==true) 
+							System.out.println("No results found :(");
+					} catch (ParseException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} //
+					
+					out.close();
+				}
+				else
+					System.out.println("Can't create output file for "+sample);
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				
+				e.printStackTrace();
+			}
+		}
+	}
+}
+
 public class WikiContextGenerator {
 
 	/**
@@ -57,82 +192,6 @@ public class WikiContextGenerator {
 	 */
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
-		/*
-		Scanner reader = new Scanner(System.in);
-		 
-		
-		// get index path
-		System.out.print("Enter index path: ");		
-		String indexPath = reader.nextLine();
-		
-		// get source path
-		System.out.print("Enter input path: ");		
-		String inpath = reader.nextLine();
-
-		// get output path
-		System.out.print("Enter output path: ");		
-		String outpath = reader.nextLine();
-		
-		// get search field
-		System.out.print("Enter search field: ");		
-		String cfg.searchField = reader.nextLine();
-
-		// get enable title search flag
-		System.out.print("Enable title search (y/n): ");		
-		boolean enable_title_search = reader.nextLine().compareTo("y")==0;
-		
-		// get enable title search flag
-		System.out.print("Enclose search query with cfg.quotes (y/n): ");		
-		String cfg.quotes = reader.nextLine().compareTo("y")==0? "\"":"";
-		
-		// get min. doc. length
-		System.out.print("Min. doc. length: ");		
-		int minDocLen = Integer.parseInt(reader.nextLine());
-		
-		// get maximum hits
-		System.out.print("Enter maximum hits (0 for max. allowed): ");		
-		int maxhits = Integer.parseInt(reader.nextLine());
-		
-		// get docid flag
-		System.out.print("Display docid (y/n): ");		
-		boolean cfg.displayDID = reader.nextLine().compareToIgnoreCase("y")==0;
-
-		// get score flag
-		System.out.print("Display score (y/n): ");		
-		boolean cfg.displayScore = reader.nextLine().compareToIgnoreCase("y")==0;
-		
-		// get docid flag
-		System.out.print("Display length (y/n): ");		
-		boolean display_length = reader.nextLine().compareToIgnoreCase("y")==0;
-
-		// get title flag
-		System.out.print("Display title (y/n): ");		
-		boolean display_title = reader.nextLine().compareToIgnoreCase("y")==0;
-		boolean noparen = false;
-		if(display_title) {
-			// get drop parentheses flag
-			System.out.print("Drop parentheses (y/n): ");		
-			noparen = reader.nextLine().compareToIgnoreCase("y")==0;			
-		}
-
-		// get text flag
-		System.out.print("Display text (y/n): ");		
-		boolean cfg.displayTxt = reader.nextLine().compareToIgnoreCase("y")==0;
-		
-		// get highlights flag
-		System.out.print("Display highlights (y/n): ");		
-		boolean cfg.displayHighlight = reader.nextLine().compareToIgnoreCase("y")==0;			
-		
-		// get number of categories to display
-		System.out.print("Display categories (y/n): ");		
-		boolean cfg.displayCategories = reader.nextLine().compareToIgnoreCase("y")==0;
-		
-		int cfg.numCategories = 0;
-		if(cfg.displayCategories) {
-			System.out.print("Enter maximum categories (0 for max. allowed): ");		
-			cfg.numCategories = Integer.parseInt(reader.nextLine());
-		}
-		*/
 		WikiSearchConfig cfg = new WikiSearchConfig();
 		if(cfg.parseOpts(args)==false)
 			displayUsage();
@@ -142,25 +201,27 @@ public class WikiContextGenerator {
 				// open the index
 				IndexReader indexReader = DirectoryReader.open(FSDirectory.open(new File(cfg.indexPath)));
 				IndexSearcher searcher = new IndexSearcher(indexReader);
-				Analyzer stdAnalyzer = new StandardAnalyzer(Version.LUCENE_46);
-				QueryParser parser = new QueryParser(Version.LUCENE_46, "text", stdAnalyzer); //
 				
 				// open source file
 				BufferedReader in = new BufferedReader(new FileReader(cfg.input));
 				if(in!=null)
 				{
+					ExecutorService executor = Executors.newFixedThreadPool(cfg.numThreads);
+					
 					int sep;
-					String sample;
-					String label;
+					String[] samples = new String[cfg.blockSize];
+					String[] labels = new String[cfg.blockSize];
 					HashSet<String> labelsDic = new HashSet<String>();
 					
 					// loop on input records
+					int lineNo = 0;
+					int threads = 0;
 					String line = in.readLine();
 					while(line!=null)
 					{
 						// extract sample string
 						sep = line.lastIndexOf(',');
-						sample = line.substring(0, sep)
+						samples[lineNo] = line.substring(0, sep)
 								.replace("\"", "")
 								.replace("/", "")
 								.replace("*", "")
@@ -174,113 +235,33 @@ public class WikiContextGenerator {
 								.replace("~","");
 						
 						// extract label
-						label = line.substring(sep+1).replace("\"", "");
+						labels[lineNo] = line.substring(sep+1).replace("\"", "");
 						
 						// Create label directory if not there
-						if(labelsDic.contains(label)==false) {
-							File dir = new File(cfg.outPath+"/"+label);
+						if(labelsDic.contains(labels[lineNo])==false) {
+							File dir = new File(cfg.outPath+"/"+labels[lineNo]);
 							if(dir.exists()==false)
 								dir.mkdirs();
-							labelsDic.add(label);
+							labelsDic.add(labels[lineNo]);
 						}
-						
-						// open output file
-						File f = new File(cfg.outPath+"/"+label+"/"+sample);
-						FileWriter out = new FileWriter(f);
-						if(f.exists()) {
-							out.write(sample+"\n");
-							try {
-								String highlight_query_str = cfg.searchField+":"+cfg.quotes+sample+cfg.quotes;
-							    String query_str = "padded_length:["+String.format("%09d", cfg.minDocLen)+" TO *]";
-						        if(cfg.enableTitleSearch) {
-						          query_str += " AND (title:"+cfg.quotes+sample+cfg.quotes+" OR "+cfg.searchField+":"+cfg.quotes+sample+cfg.quotes+")";
-						        }
-						        else {
-						          query_str += " AND ("+cfg.searchField+":"+cfg.quotes+sample+cfg.quotes+")";
-						        }
-							
-								Query query = parser.parse(query_str);
-								Query highlight_query = parser.parse(highlight_query_str);
-								
-								System.out.println("Searching (" + query + ").....");
-								TopDocs topDocs = searcher.search(query, cfg.maxHits!=0?cfg.maxHits:Integer.MAX_VALUE);
-								if(topDocs.totalHits > 0) {
-									ScoreDoc[] hits = topDocs.scoreDocs;
-									System.out.println("Results ("+hits.length+") :)");
-									String data;
-									int indx;
-									SimpleHTMLFormatter htmlFormatter = null;
-									Highlighter highlighter = null;
-									if(cfg.displayHighlights) {
-										htmlFormatter = new SimpleHTMLFormatter();
-										highlighter = new Highlighter(htmlFormatter, new QueryScorer(highlight_query));
-									}
-									for(int i = 0 ; i < hits.length; i++) {
-										if(cfg.displayDID) {
-											out.write(String.format("\t%d", hits[i].doc));
-										}
-										if(cfg.displayScore) {
-											out.write(String.format("\t%f", hits[i].score));
-										}
-										if(cfg.displayLen) {
-											out.write("\t"+indexReader.document(hits[i].doc).getField("length").stringValue());
-										}
-										if(cfg.displayTitle) {
-											data = indexReader.document(hits[i].doc).getField("title").stringValue();
-											if(cfg.removeParen && (indx=data.indexOf(" ("))!=-1)
-												data = indexReader.document(hits[i].doc).getField("title").stringValue().substring(0,indx);
-											out.write("\t"+data);
-										}
-										if(cfg.displayTxt || cfg.displayHighlights) {
-											String text = indexReader.document(hits[i].doc).getField("text").stringValue();
-											if(cfg.displayTxt)
-												out.write("\t"+text);
-											if(cfg.displayHighlights) {
-												TokenStream tokenStream = TokenSources.getAnyTokenStream(searcher.getIndexReader(), 
-														hits[i].doc, "text", stdAnalyzer);
-												TextFragment[] frag;
-												try {
-													frag = highlighter.getBestTextFragments(tokenStream, text, false, 10);
-													for (int j = 0; j < frag.length; j++) {
-														if ((frag[j] != null) && (frag[j].getScore() > 0)) {
-															out.write("\t"+(frag[j].toString()));
-															out.flush();
-														}
-													}
-												} catch (InvalidTokenOffsetsException e) {
-													// TODO Auto-generated catch block
-													e.printStackTrace();
-												}//highlighter.getBestFragments(tokenStream, text, 3, "...");
-												
-											}
-										}
-										if(cfg.displayCategories) {
-											IndexableField categories[] = indexReader.document(hits[i].doc).getFields("category");
-											for(int j=0; j<categories.length && (cfg.numCategories==0 || j<cfg.numCategories); j++){ 
-												out.write("\t"+categories[j].stringValue());
-											}
-										}
-										
-										out.write(System.lineSeparator()+System.lineSeparator()+System.lineSeparator());
-									}
-								}
-								else 
-									System.out.println("No results found :(");
-							} catch (ParseException e) {
-								// TODO Auto-generated catch block
-								e.printStackTrace();
-							} //
-							
-							out.close();
+						if(++lineNo%cfg.blockSize==0) {
+							executor.execute(new ContextGeneratorThread(samples, labels, cfg, indexReader, searcher));
+							samples =  new String[cfg.blockSize];
+							labels = new String[cfg.blockSize];
+							lineNo = 0;
+							threads++;
 						}
-						else
-							System.out.println("Can't create output file for "+sample);
-						
 						line = in.readLine();
 					}
 					in.close();
+					
+					// wait for all threads to complete.
+					executor.shutdown();
+					while(!executor.isTerminated()) {
+						
+					}
 				}
-				System.out.println("Done!");
+				System.out.println("Done generating contextual information :)");
 				
 			} catch (IOException e) {
 				// TODO Auto-generated catch block
@@ -308,6 +289,9 @@ public class WikiContextGenerator {
 				+ "[--write-text] "
 				+ "[--write-highlights] "
 				+ "[--write-categories] "
-				+ "[--categories-num num-categories-to-write ]");
+				+ "[--categories-num num-categories-to-write ]"
+				+ "[--threads-num num-threads-to-run ]"
+				+ "[--block-size block-size-per-thread ]"
+				+ "[--debug ]");
 	}
 }

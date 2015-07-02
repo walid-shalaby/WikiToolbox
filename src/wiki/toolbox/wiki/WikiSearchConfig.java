@@ -56,6 +56,15 @@ public class WikiSearchConfig {
 	// number of categories
 	public int numCategories = 0;
 	
+	// number of threads
+	int numThreads = 1;
+	
+	// block size per thread
+	int blockSize = 10000;
+	
+	// debug flag
+	boolean debug = false;
+	
 	public WikiSearchConfig() {
 		
 	}
@@ -105,6 +114,12 @@ public class WikiSearchConfig {
 			else if(opts[i].compareToIgnoreCase("--categories-num")==0 && ++i<opts.length) {
 				numCategories = Integer.parseInt(opts[i]);
 			}
+			else if(opts[i].compareToIgnoreCase("--threads-num")==0 && ++i<opts.length) {
+				numThreads = Integer.parseInt(opts[i]);
+			}
+			else if(opts[i].compareToIgnoreCase("--block-size")==0 && ++i<opts.length) {
+				blockSize = Integer.parseInt(opts[i]);
+			}
 			else if(opts[i].compareToIgnoreCase("--quote")==0) {
 				quotes = "\""; 
 			}
@@ -113,7 +128,10 @@ public class WikiSearchConfig {
 			}
 			else if(opts[i].compareToIgnoreCase("--max-hits")==0 && ++i<opts.length) {
 				maxHits = Integer.parseInt(opts[i]); 
-			}		
+			}
+			else if(opts[i].compareToIgnoreCase("--debug")==0) {
+				debug = true;
+			}			
 		}
 		if(searchField.length()>0 && 
 				input.length()>0 && 
