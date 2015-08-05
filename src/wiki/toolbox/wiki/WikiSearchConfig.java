@@ -22,6 +22,8 @@ public class WikiSearchConfig {
 
 	// enable title search flag
 	public boolean enableTitleSearch = false;
+	// title search operator
+	public String titleOp = "AND";
 	
 	// enable enclose query with quotes flag
 	public String quotes = "";
@@ -86,6 +88,9 @@ public class WikiSearchConfig {
 			}
 			else if(opts[i].compareToIgnoreCase("--title-search")==0) {
 				enableTitleSearch = true;
+			}
+			else if(opts[i].compareToIgnoreCase("--title-op")==0 && ++i<opts.length) {
+				titleOp = opts[i].toUpperCase();
 			}
 			else if(opts[i].compareToIgnoreCase("--write-did")==0) {
 				displayDID = true;

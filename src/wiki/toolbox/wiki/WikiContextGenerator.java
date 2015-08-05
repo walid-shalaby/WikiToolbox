@@ -84,7 +84,7 @@ class ContextGeneratorThread implements Runnable {
 			String sample = samples[s];
 			String label = labels[s];
 			try {
-				File f = new File(cfg.outPath+"/"+label+"/"+sample);
+				File f = new File(cfg.outPath+"/"+label+"/"+sample.toLowerCase());
 				FileWriter out = new FileWriter(f);
 				if(f.exists()) {
 					out.write(sample+"\n");
