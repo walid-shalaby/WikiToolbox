@@ -71,7 +71,7 @@ public class WikiSearchConfig {
 		
 	}
 	
-	boolean parseOpts(String[] opts) {
+	public boolean parseOpts(String[] opts) {
 		boolean result = false;
 		for(int i=0; i<opts.length; i++) {
 			if(opts[i].compareToIgnoreCase("--index")==0 && ++i<opts.length) {
