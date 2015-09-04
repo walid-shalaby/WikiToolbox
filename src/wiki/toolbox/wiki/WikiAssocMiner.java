@@ -5,20 +5,15 @@
 
 package wiki.toolbox.wiki;
 
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.sql.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Scanner;
-import java.util.concurrent.ArrayBlockingQueue;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -30,9 +25,6 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.lucene.util.ArrayUtil;
-import org.apache.lucene.util.CollectionUtil;
-import org.apache.lucene.util.Version;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
 
@@ -68,8 +60,8 @@ public class WikiAssocMiner {
 			// open the index
 			IndexReader indexReader = DirectoryReader.open(FSDirectory.open(new File(indexPath)));
 			IndexSearcher searcher = new IndexSearcher(indexReader);
-			Analyzer stdAnalyzer = new StandardAnalyzer(Version.LUCENE_46);
-			QueryParser parser = new QueryParser(Version.LUCENE_46, "text", stdAnalyzer); //
+			Analyzer stdAnalyzer = new StandardAnalyzer();
+			QueryParser parser = new QueryParser("text", stdAnalyzer); //
 			Query query = null;
 			try {
 				

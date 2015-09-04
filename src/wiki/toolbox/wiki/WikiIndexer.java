@@ -345,11 +345,21 @@ public class WikiIndexer {
 							// set title
 							String title = trecDoc.getTitle();
 							doc.add(new Field("title", title, Field.Store.YES, Field.Index.ANALYZED));
+							
+							// set title length
+							int len = getTitleLength(title);
+							doc.add(new Field("title_length", String.format("%03d", len), Field.Store.YES, Field.Index.ANALYZED_NO_NORMS));
+							
 							if(anchorsDic!=null && anchorsDic.containsKey(title)) { 
 								// add all possible anchors as candidate titles
 								Iterator<String> anchors = anchorsDic.get(title).iterator();
 								while(anchors.hasNext()) {
-									doc.add(new Field("title_anchors", anchors.next(), Field.Store.YES, Field.Index.ANALYZED));
+									String anchor = anchors.next();
+									doc.add(new Field("title_anchors", anchor, Field.Store.YES, Field.Index.ANALYZED));
+									
+									// set anchor length
+									len = getTitleLength(anchor);
+									doc.add(new Field("anchor_length", String.format("%03d", len), Field.Store.YES, Field.Index.ANALYZED_NO_NORMS));					
 								}								
 							}
 							if(NEMap!=null && NEMap.containsKey(title)) { 
@@ -360,6 +370,10 @@ public class WikiIndexer {
 							if(enableSeeAlso && trecDoc.getSeeAlso()!=null) { // set see also
 								for(String seeAlso : trecDoc.getSeeAlso()) {
 									doc.add(new Field("see_also", seeAlso, Field.Store.YES, Field.Index.ANALYZED));
+									
+									// set seealso length
+									len = getTitleLength(seeAlso);
+									doc.add(new Field("seealso_length", String.format("%03d", len), Field.Store.YES, Field.Index.ANALYZED_NO_NORMS));
 									
 									if(NEMap!=null && NEMap.containsKey(seeAlso)) { 
 										// add NE for this see also
@@ -397,5 +411,18 @@ public class WikiIndexer {
 				}
 			}
 		}
+	}
+	
+	public static int getTitleLength(String title) {
+		// TODO Auto-generated method stub
+		int index = title.length(), index1, index2;
+		if((index1=title.indexOf(','))==-1)
+				index1 = index;
+		if((index2=title.indexOf('('))==-1)
+				index2 = index;
+		
+		index = Math.min(index1, index2);
+		String s[] = title.substring(0,index).split(" ");
+		return s.length;
 	}
 }
