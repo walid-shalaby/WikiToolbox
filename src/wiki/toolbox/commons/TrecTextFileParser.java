@@ -79,7 +79,6 @@ public class TrecTextFileParser {
 		end = doctxt.indexOf("</text>");
 		if(start >= 0 && end >= 0)
 			doc.setText(doctxt.substring(start+6+System.lineSeparator().length(), end));
-		
 		//TODO: modify length in trec file to correct one
 		doc.setDocLen(doc.getText().length());
 		

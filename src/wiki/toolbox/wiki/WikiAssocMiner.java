@@ -14,6 +14,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
@@ -45,7 +47,7 @@ public class WikiAssocMiner {
 	 */
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
-
+		
 		Scanner reader = new Scanner(System.in);
 		
 		// get index path
@@ -84,7 +86,7 @@ public class WikiAssocMiner {
 				System.out.println("Results ("+hits.length+") :)");
 				
 				// write all see_also transactions
-				FileWriter seeWriter = new FileWriter(new File(outpath+"wiki_seealso.arff"));
+				FileWriter seeWriter = new FileWriter(new File(outpath+"/wiki_seealso.arff"));
 				seeWriter.write("@relation wiki_seealso.symbolic\n\n");		
 				for(int i = 0 ; i < hits.length; i++) {
 					// get docno
@@ -154,7 +156,7 @@ public class WikiAssocMiner {
 				seeWriter.close();
 				
 				// write all associations
-				FileWriter assocWriter = new FileWriter(new File(outpath+"wiki_associations.txt"));
+				FileWriter assocWriter = new FileWriter(new File(outpath+"/wiki_associations.txt"));
 				
 				for(String title : wikiTopicsCounts.keySet()) {
 					assocWriter.write(title+"/\\/\\"+wikiTopicsCounts.get(title));
