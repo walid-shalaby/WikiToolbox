@@ -10,6 +10,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map.Entry;
@@ -29,6 +30,13 @@ import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.impl.HttpSolrServer;
+import org.apache.solr.client.solrj.response.QueryResponse;
+import org.apache.solr.common.SolrDocument;
+import org.apache.solr.common.SolrDocumentList;
+import org.apache.solr.common.params.CommonParams;
+import org.apache.solr.common.params.ModifiableSolrParams;
 
 //class WikiTopic {
 //	public int docno;
@@ -51,141 +59,149 @@ public class WikiAssocMiner {
 		Scanner reader = new Scanner(System.in);
 		
 		// get index path
-		System.out.print("Enter index path: ");		
-		String indexPath = reader.nextLine();
+		System.out.print("Enter url: ");		
+		String wikiUrl = reader.nextLine();
 		
 		// get output path
 		System.out.print("Enter output path: ");		
 		String outpath = reader.nextLine();
 		
-		try {
-			// open the index
-			IndexReader indexReader = DirectoryReader.open(FSDirectory.open(new File(indexPath)));
-			IndexSearcher searcher = new IndexSearcher(indexReader);
-			Analyzer stdAnalyzer = new StandardAnalyzer();
-			QueryParser parser = new QueryParser("text", stdAnalyzer); //
-			Query query = null;
-			try {
-				
-				parser.setAllowLeadingWildcard(true);				
-				query = parser.parse("*");
-			} catch (ParseException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			System.out.println("Searching (" + query + ").....");
-			TopDocs topDocs = searcher.search(query, Integer.MAX_VALUE);
-			if(topDocs.totalHits > 0) {
-				HashMap<String, HashMap<String, Integer>> wikiAssociations = 
+
+		HttpSolrServer server = new HttpSolrServer(wikiUrl);
+	    ModifiableSolrParams conceptsQParams = new ModifiableSolrParams();
+	    conceptsQParams.set(CommonParams.Q, "*");
+	    conceptsQParams.set("defType","edismax");
+	    conceptsQParams.set("qf", "title");
+	    conceptsQParams.set(CommonParams.ROWS, Integer.MAX_VALUE);
+	    
+	    // add target extract field
+	    conceptsQParams.set("fl", new String[]{"title","redirect","seealso"});
+	    QueryResponse conceptsQResp;
+	    try {
+	      conceptsQResp = server.query(conceptsQParams);
+	    
+	      // loop on results and add to concepts
+	      SolrDocumentList results = conceptsQResp.getResults();
+	      if(results!=null && results.size()>0) {
+	    	HashMap<String, HashMap<String, Integer>> wikiAssociations = 
 						new HashMap<String, HashMap<String, Integer> >();
 				
-				HashMap<String, Integer> wikiTopics = new HashMap<String, Integer>();
-				HashMap<String, Integer> wikiTopicsCounts = new HashMap<String, Integer>();
+			HashMap<String, Integer> wikiTopics = new HashMap<String, Integer>();
+			HashMap<String, String> wikiRedirects = new HashMap<String, String>();
+			HashMap<String, Integer> wikiTopicsCounts = new HashMap<String, Integer>();
 				
-				ScoreDoc[] hits = topDocs.scoreDocs;
-				System.out.println("Results ("+hits.length+") :)");
+			System.out.println("Results ("+results.size()+") :)");
 				
-				// write all see_also transactions
-				FileWriter seeWriter = new FileWriter(new File(outpath+"/wiki_seealso.arff"));
-				seeWriter.write("@relation wiki_seealso.symbolic\n\n");		
-				for(int i = 0 ; i < hits.length; i++) {
-					// get docno
-					int docno = Integer.parseInt(indexReader.document(hits[i].doc).getField("docno").stringValue());
-					
-					// get title
-					IndexableField arr[] = indexReader.document(hits[i].doc).getFields("title");					
-					
-					seeWriter.write("@attribute \""+arr[0].stringValue().replace("\\", "\\\\")+"\" {f,t}\n");
-					
-					wikiTopics.put(arr[0].stringValue().toLowerCase(), i);
+			// write all see_also transactions
+			FileWriter seeWriter = new FileWriter(new File(outpath+"/wiki_seealso.arff"));
+			seeWriter.write("@relation wiki_seealso.symbolic\n\n");		
+				
+	        for(int i=0; i<results.size(); i++) {
+	        	SolrDocument doc = results.get(i);
+	        	
+				// get title
+				String title = (String)doc.getFieldValue("title");					
+				
+				seeWriter.write("@attribute \""+title.replace("\\", "\\\\")+"\" {f,t}\n");
+				
+				wikiTopics.put(title, i);
+				
+				// add redirects
+		        Collection<Object> redirectValues = doc.getFieldValues("redirect");
+		        if(redirectValues!=null) {
+		          Object[] redirects = redirectValues.toArray();
+		          for(int t=0; t<redirects.length; t++) {
+		            wikiRedirects.put((String) redirects[t], title);
+		          }
+		        }
+	        }
+	        seeWriter.write("\n\n@data\n");
+	        
+	        for(int i=0; i<results.size(); i++) {
+	        	ArrayList<String> titles = new ArrayList<String>(300); 
+	        	SolrDocument doc = results.get(i);
+	        	
+				// get title
+	        	String title = (String)doc.getFieldValue("title");
+				titles.add(title);
+				
+				Integer idx = wikiTopics.get(title);
+				if(idx==null) {
+					System.out.println(title+" -- invalid title");
+					continue;
 				}
 				
-				seeWriter.write("\n\n@data\n");
-				
-				for(int i = 0 ; i < hits.length; i++) {
-					
-					ArrayList<String> titles = new ArrayList<String>(300); 
-					
-					// get title
-					IndexableField arr[] = indexReader.document(hits[i].doc).getFields("title");					
-					String title = arr[0].stringValue();
-					titles.add(title);
-					
-					Integer idx = wikiTopics.get(title.toLowerCase());
-					if(idx==null) {
-						System.out.println(title+" -- invalid title");
-						continue;
-					}
-					
+				// get see also
+				int j = 0;
+				Collection<Object> seeAlsoValues = doc.getFieldValues("seealso");
+				if(seeAlsoValues!=null && seeAlsoValues.size()>0) {
 					// get see also
-					int j = 0;
-					arr = indexReader.document(hits[i].doc).getFields("see_also");
-					
-					if(arr.length>0) {
-						// get see also
-						ArrayList<Integer> idxs = new ArrayList<Integer>(arr.length);
-						for(j=0; j<arr.length; j++) {
-							titles.add(arr[j].stringValue());
-							
-							Integer sidx = wikiTopics.get(arr[j].stringValue().toLowerCase());
-							if(sidx!=null)
-								idxs.add(sidx);
+					ArrayList<Integer> idxs = new ArrayList<Integer>(seeAlsoValues.size());
+					Object[] multiSeeAlso = seeAlsoValues.toArray();
+					for(j=0; j<multiSeeAlso.length; j++) {
+						Integer sidx = wikiTopics.get((String)multiSeeAlso[j]);
+						if(sidx!=null) {
+							idxs.add(sidx);
+							titles.add((String)multiSeeAlso[j]);
+						}
+						else {
+							String orgtitle = wikiRedirects.get((String)multiSeeAlso[j]);
+							if(orgtitle!=null) {
+								idxs.add(wikiTopics.get(orgtitle));
+								titles.add(orgtitle);
+							}
 							else
-								System.out.println(arr[j].stringValue()+" -- invalid see_also with "+title);
-						}
-						if(idxs.size()>0) {
-							// add original title
-							idxs.add(idx);
-							
-							// sort out indices
-							Integer[] sidxs = new Integer[idxs.size()];
-							sidxs = idxs.toArray(sidxs);
-							Arrays.sort(sidxs);
-							
-							seeWriter.write("{"+sidxs[0].toString()+" t");
-							for(j=1; j<sidxs.length; j++)
-								if(sidxs[j-1]!=sidxs[j]) // there are some duplicates!
-									seeWriter.write(","+sidxs[j].toString()+" t");
-							
-							seeWriter.write("}\n");
+								System.out.println((String)multiSeeAlso[j]+" -- invalid see_also of ("+(String)multiSeeAlso[j]+") with title("+title+")");
 						}
 					}
-					updateCounts(titles, wikiAssociations, wikiTopicsCounts);
-				}
-				
-				seeWriter.close();
-				
-				// write all associations
-				FileWriter assocWriter = new FileWriter(new File(outpath+"/wiki_associations.txt"));
-				
-				for(String title : wikiTopicsCounts.keySet()) {
-					assocWriter.write(title+"/\\/\\"+wikiTopicsCounts.get(title));
-					Iterator<Entry<String, Integer>> iter = wikiAssociations.get(title).entrySet().iterator();
-					while(iter.hasNext()) {
-						Entry<String,Integer> e = iter.next();
-						assocWriter.write("#$#"+e.getKey()+"/\\/\\"+e.getValue());
+					if(idxs.size()>0) {
+						// add original title
+						idxs.add(idx);
+						
+						// sort out indices
+						Integer[] sidxs = new Integer[idxs.size()];
+						sidxs = idxs.toArray(sidxs);
+						Arrays.sort(sidxs);
+						
+						seeWriter.write("{"+sidxs[0].toString()+" t");
+						for(j=1; j<sidxs.length; j++)
+							if(sidxs[j-1]!=sidxs[j]) // there are some duplicates!
+								seeWriter.write(","+sidxs[j].toString()+" t");
+						
+						seeWriter.write("}\n");
 					}
-					assocWriter.write("\n");
 				}
-				seeWriter.close();
-				assocWriter.close();
+				updateCounts(titles, wikiAssociations, wikiTopicsCounts);
+	        }
+	        seeWriter.close();
+	        
+	        // write all associations
+			FileWriter assocWriter = new FileWriter(new File(outpath+"/wiki_associations.txt"));
+			
+			for(String title : wikiTopicsCounts.keySet()) {
+				assocWriter.write(title+"/\\/\\"+wikiTopicsCounts.get(title));
+				Iterator<Entry<String, Integer>> iter = wikiAssociations.get(title).entrySet().iterator();
+				while(iter.hasNext()) {
+					Entry<String,Integer> e = iter.next();
+					assocWriter.write("#$#"+e.getKey()+"/\\/\\"+e.getValue());
+				}
+				assocWriter.write("\n");
 			}
-			else 
-				System.out.println("No results found :(");
+			seeWriter.close();
+			assocWriter.close();
+	      }
+	      else 
+			System.out.println("No results found :(");
 				
-			reader.close();
-			
 			System.out.println("\nDone...\n");
-			
-		} catch (IOException e) {
+	    } catch (SolrServerException e) {
+	    	e.printStackTrace();
+	    } catch (IOException e) {
 			// TODO Auto-generated catch block
-			
 			e.printStackTrace();
-		} 
-				
-		
-
+		}
 	}
+	
 
 	private static void updateCounts(ArrayList<String> titles, 
 			HashMap<String, HashMap<String, Integer>> wikiAssociations, 
