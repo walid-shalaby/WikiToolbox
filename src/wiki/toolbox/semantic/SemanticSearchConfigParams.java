@@ -33,16 +33,22 @@ public class SemanticSearchConfigParams {
 	public boolean hidden_relax_disambig = false;
 	public boolean hidden_relax_listof = false;
 	public boolean hidden_relax_same_title = false;
+	public boolean hidden_relax_filters = false;
 	public boolean hidden_relatedness_experiment = false;
+	public boolean hidden_pagerank_weighting = false;
 	public boolean abs_explicit = false;
 	public int hidden_max_hits = 1000;
 	public int hidden_min_wiki_length = 0;
 	public int hidden_min_seealso_length = 0;
 	public int hidden_min_asso_cnt = 1;
+	public int hidden_min_supp = 1;
+	public float hidden_min_confidence = 0;
 	public int hidden_max_title_ngrams = 3;
 	public int hidden_max_seealso_ngrams = 3;
 	public int concepts_num = 10;
 	public int ci_patents_num = 10;
+	public boolean ci_freetext = false;
+	public int hidden_max_levels = 2;
 	public String semantics_separator = "\t";
 	public String file_separator = ",";
 	public boolean write_ids = false;
@@ -135,6 +141,12 @@ public class SemanticSearchConfigParams {
 			else if(opts[i].compareToIgnoreCase("--min-asso-cnt")==0 && ++i<opts.length) {
 				hidden_min_asso_cnt = Integer.parseInt(opts[i]);
 			}
+			else if(opts[i].compareToIgnoreCase("--min-supp")==0 && ++i<opts.length) {
+				hidden_min_supp = Integer.parseInt(opts[i]);
+			}
+			else if(opts[i].compareToIgnoreCase("--min-confidence")==0 && ++i<opts.length) {
+				hidden_min_confidence = Float.parseFloat(opts[i]);
+			}			
 			else if(opts[i].compareToIgnoreCase("--extra-q")==0 && ++i<opts.length) {
 				hidden_wiki_extra_query = opts[i];
 			}
@@ -201,6 +213,12 @@ public class SemanticSearchConfigParams {
 					hidden_relatedness_experiment = true;
 				else
 					hidden_relatedness_experiment = false;
+			}
+			else if(opts[i].compareToIgnoreCase("--pagerank")==0 && ++i<opts.length) {
+				if(opts[i].compareToIgnoreCase("on")==0)
+					hidden_pagerank_weighting = true;
+				else
+					hidden_pagerank_weighting = false;
 			}
 			else if(opts[i].compareToIgnoreCase("--debug")==0 && ++i<opts.length) {
 				if(opts[i].compareToIgnoreCase("on")==0)

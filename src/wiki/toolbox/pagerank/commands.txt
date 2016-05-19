@@ -1,0 +1,77 @@
+---------------------------------------------------
+By: Walid Shalaby - 800844545 (wshalaby@uncc.edu) |
+---------------------------------------------------
+
+Description
+-------------
+This program uses Hadoop MapReduce to calculate pagerank of wikipedia
+
+Flow
+------
+1. job is created to construct linkgraph. Mapper parses wiki page to extract title and linkees list and emits title+initial page rank+# of linkees+linkees list. Reducer emits same key value pairs. All data are writter to outpath.tmp/linkgraph.
+2. job is created to perform pagerank computaions. Mapper emits linkee+source pagerank as well as same title+linkees list. Reducer calculates page rank for each title and update it in the full title+linees list. All data are writter to outpath.tmp/pagerankN where N is the iteration number. At the end of each iteration, intput to that iteration is cleaned.
+3. job is created to sort titles according to pagerank. Mapper emits pagerank+title. Reducer emits title+pagerank. Sorting is done automatically during shuffle. All data are writter to outpath.tmp/pageranksorted. After the job is completed outpath.tmp/pageranksorted is moved to outpath and outpath.tmp is deleted.
+
+Building source files:
+-----------------------
+from within WikiToolbox
+mkdir pagerank
+javac -cp /usr/lib/hadoop/*:/usr/lib/hadoop-mapreduce/*:./* src/wiki/toolbox/pagerank/*.java -d bin/pagerank -Xlint
+
+Packaging class files:
+-----------------------
+jar -cvf pagerank.jar -C bin/pagerank/ .
+
+Running PageRank
+----------------------
+hadoop jar pagerank.jar wiki.toolbox.pagerank.PageRank hadoop-input-path hadoop-outputpath iterations
+
+Running on wikipedia
+-------------------------------
+1. create new hdfs directory
+hadoop fs -mkdir wikilines
+2. copy wikipedia
+hadoop fs -put enwiki-20150304-pages-articles-multistream-lines.xml wikilines
+3. run pagerank for 20 iterations
+hdfs dfs -rm -r wiki-pagerank.tmp
+hdfs dfs -rm -r wiki-pagerank
+hdfs dfs -rm -r hdfs://urc-hadoop/user/wshalaby/.Trash/Current
+nohup hadoop jar pagerank.jar PageRank wikilines wiki-pagerank 20 > wiki-pagerank-log.txt &
+watch tail wiki-pagerank-log.txt
+4. get output file of pages with ranks ordered descendingly
+hdfs dfs -text wiki-pagerank/* > wiki-pagerank.txt
+5. display top 100 pages
+head -n 100 simplewiki_pagerank.txt
+
+Run on manual
+---------------
+rm wiki-manual-sample.txt
+nano wiki-manual-sample.txt
+<title>A</title>[[B]]
+<title>B</title>[[C|CC]]
+<title>C</title>
+<title>D</title>[[C]]
+
+from Wikitoolbox
+rm -r bin/pagerank/
+mkdir bin/pagerank
+javac -cp /usr/lib/hadoop/*:/usr/lib/hadoop-mapreduce/*:./* src/wiki/toolbox/pagerank/*.java -d bin/pagerank -Xlint
+jar -cvf pagerank.jar -C bin/pagerank/ .
+hdfs dfs -rm -r pagerank-wiki-manual-sample
+hdfs dfs -rm -r pagerank-wiki-manual-sample.tmp
+hdfs dfs -rm -r wiki-manual-sample
+hdfs dfs -mkdir wiki-manual-sample
+hdfs dfs -put wiki-manual-sample.txt wiki-manual-sample
+nohup hadoop jar pagerank.jar PageRank wiki-manual-sample pagerank-wiki-manual-sample 1 > wiki-manual-sample-pagerank-log.txt &
+watch tail wiki-manual-sample-pagerank-log.txt
+cat wiki-manual-sample-pagerank-log.txt
+hdfs dfs -text pagerank-wiki-manual-sample/* > pagerank-wiki-manual-sample.txt
+cat pagerank-wiki-manual-sample.txt
+hdfs dfs -ls pagerank-wiki-manual-sample.tmp
+hdfs dfs -text pagerank-wiki-manual-sample.tmp/linkgraph/*
+hdfs dfs -text pagerank-wiki-manual-sample.tmp/pagerank/*
+hdfs dfs -text pagerank-wiki-manual-sample.tmp/pageranksorted/*
+
+
+
+

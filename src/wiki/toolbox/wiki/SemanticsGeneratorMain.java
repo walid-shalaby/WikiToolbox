@@ -199,9 +199,15 @@ public class SemanticsGeneratorMain implements Runnable{
 	
 	public static void main(String[] args) {
 		// TODO Auto-generated method stub
+		//Scanner sc = new Scanner(System.in);
+		//System.out.print("enter wiki url: ");
+		//String wikiurl = sc.nextLine();
+		//System.out.print("enter associaitons path: ");
+		//String assopath = sc.nextLine();
 		SemanticsGenerator semanticsGenerator = new SemanticsGenerator();
 		semanticsGenerator.cacheAssociationsInfo("./wiki_associations.txt");
 		semanticsGenerator.cacheConceptsInfo(new SemanticSearchConfigParams().wikiUrl, false, false);
+		//sc.close();
 		
 		if(args.length>0) {
 			SemanticSearchConfigParams cfg = new SemanticSearchConfigParams();
@@ -222,8 +228,8 @@ public class SemanticsGeneratorMain implements Runnable{
 	}
 	private static void doInteractiveMode() {
 		// TODO Auto-generated method stub
+		Scanner sc = new Scanner(System.in);
 		while(true) {
-			Scanner sc = new Scanner(System.in);
 			System.out.print("enter commands path: ");
 			String s = sc.nextLine();
 			if(s.length()>0) {
@@ -260,6 +266,7 @@ public class SemanticsGeneratorMain implements Runnable{
 			else
 				break;
 		}
+		sc.close();
 	}
 
 	static void displayUsage() {

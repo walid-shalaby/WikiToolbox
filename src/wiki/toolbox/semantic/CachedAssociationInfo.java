@@ -3,8 +3,10 @@ package wiki.toolbox.semantic;
 import java.util.ArrayList;
 
 public class CachedAssociationInfo {
+  public int sup = 0;
   public ArrayList<Integer[]> associations = null;
-  public CachedAssociationInfo() {
+  public CachedAssociationInfo(int sup) {
+	  this.sup = sup;
     associations = new ArrayList<Integer[]>();
   }
   

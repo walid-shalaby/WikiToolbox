@@ -5,13 +5,18 @@
 
 package wiki.toolbox.wiki;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map.Entry;
 import java.util.Scanner;
@@ -63,6 +68,10 @@ public class WikiAssocMiner {
 		String wikiUrl = reader.nextLine();
 		
 		// get output path
+		System.out.print("Enter keeponly path (press enter to skip): ");		
+		String keeppath = reader.nextLine();	
+		
+		// get output path
 		System.out.print("Enter output path: ");		
 		String outpath = reader.nextLine();
 		
@@ -83,6 +92,17 @@ public class WikiAssocMiner {
 	      // loop on results and add to concepts
 	      SolrDocumentList results = conceptsQResp.getResults();
 	      if(results!=null && results.size()>0) {
+	    	// load keep only
+	    	HashSet<String> toKeep = new HashSet<String>();
+	    	if(keeppath.length()>0) {
+	    		BufferedReader br = new BufferedReader(new FileReader(keeppath));
+	    		String line = br.readLine();
+	    		while(line!=null) {
+	    			toKeep.add(line);
+	    			line = br.readLine();
+	    		}
+	    		br.close();
+	    	}
 	    	HashMap<String, HashMap<String, Integer>> wikiAssociations = 
 						new HashMap<String, HashMap<String, Integer> >();
 				
@@ -102,18 +122,20 @@ public class WikiAssocMiner {
 				// get title
 				String title = (String)doc.getFieldValue("title");					
 				
-				seeWriter.write("@attribute \""+title.replace("\\", "\\\\")+"\" {f,t}\n");
-				
-				wikiTopics.put(title, i);
-				
-				// add redirects
-		        Collection<Object> redirectValues = doc.getFieldValues("redirect");
-		        if(redirectValues!=null) {
-		          Object[] redirects = redirectValues.toArray();
-		          for(int t=0; t<redirects.length; t++) {
-		            wikiRedirects.put((String) redirects[t], title);
-		          }
-		        }
+				if(toKeep.size()==0 || toKeep.contains(title)) {
+					seeWriter.write("@attribute \""+title.replace("\\", "\\\\")+"\" {f,t}\n");
+					
+					wikiTopics.put(title, i);
+					
+					// add redirects
+			        Collection<Object> redirectValues = doc.getFieldValues("redirect");
+			        if(redirectValues!=null) {
+			          Object[] redirects = redirectValues.toArray();
+			          for(int t=0; t<redirects.length; t++) {
+			            wikiRedirects.put((String) redirects[t], title);
+			          }
+			        }
+				}
 	        }
 	        seeWriter.write("\n\n@data\n");
 	        

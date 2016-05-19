@@ -7,6 +7,7 @@ public class SemanticConcept implements Comparable<SemanticConcept> {
   public String name = "";
   public String ner = ""; // NE label ("P" --> person, "o" --> organization, "L" --> location, "M" --> misc)
   public float weight = 0.0f;
+  public float weight2 = 0; // this is either tfidf score or pagerank
   public int id = 0;
   public int parent_id = 0;
   public int asso_cnt = 0;
@@ -17,11 +18,12 @@ public class SemanticConcept implements Comparable<SemanticConcept> {
   }
   
   public SemanticConcept(String name, CachedConceptInfo cachedInfo, String ne, float w, 
-    int id, int parent_id, int asso, Enums.ENUM_CONCEPT_TYPE type) {
+    int id, int parent_id, int asso, Enums.ENUM_CONCEPT_TYPE type, float w2) {
     this.name = name;
     this.cachedInfo = cachedInfo;
     ner = ne;
     weight = w;
+    weight2 = w2;
     e_concept_type = type;
     this.id = id;
     this.parent_id = parent_id;
@@ -66,6 +68,7 @@ public class SemanticConcept implements Comparable<SemanticConcept> {
   public SimpleOrderedMap<Object> getInfo() {
     SimpleOrderedMap<Object> conceptInfo = new SimpleOrderedMap<Object>();
     conceptInfo.add("weight", weight);
+    conceptInfo.add("weight2", weight2);
     conceptInfo.add("id", id);
     conceptInfo.add("p_id", parent_id);
     conceptInfo.add("asso_cnt", asso_cnt);
