@@ -155,7 +155,7 @@ public class SemanticsGenerator {
         }
         System.out.println("cached ("+cachedConceptsInfo.size()+") concepts.");
       }              
-    } catch (SolrServerException e) {
+    } catch (SolrServerException | IOException e) {
     	e.printStackTrace();      
     }        
   }
@@ -515,7 +515,7 @@ public class SemanticsGenerator {
     	  if(params.debug==true)
     		  System.out.println("No semantic results found :(");
       }
-    } catch (SolrServerException e) {
+    } catch (SolrServerException | IOException e) {
     	System.out.println("Error executing query: "+queryString);
     	e.printStackTrace();      
     }

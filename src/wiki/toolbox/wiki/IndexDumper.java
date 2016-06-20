@@ -1,5 +1,6 @@
 package wiki.toolbox.wiki;
 
+import java.io.IOException;
 import java.util.ArrayList;
 
 import org.apache.solr.client.solrj.SolrServerException;
@@ -43,7 +44,7 @@ public class IndexDumper {
 	          ((String) doc.getFieldValue("title")).replaceAll("\n", " ")+" "+((String) doc.getFieldValue("abstract")).replaceAll("\n", " "));	  
 	        }
 	    }
-	}catch (SolrServerException e) {
+	}catch (SolrServerException | IOException e) {
     	e.printStackTrace();      
     }        
 	}

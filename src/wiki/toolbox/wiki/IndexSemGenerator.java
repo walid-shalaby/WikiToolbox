@@ -102,7 +102,7 @@ public class IndexSemGenerator {
 				e.printStackTrace();
 			}
 	    }
-	}catch (SolrServerException e) {
+	}catch (SolrServerException | IOException e) {
     	e.printStackTrace();      
     }        
 	}
