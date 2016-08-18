@@ -260,13 +260,14 @@ public class ContextGenerator implements Runnable {
 							}
 						}
 					}
+		    	  server.close();
 			}
 			else if(cfg.debug==true) 
 				System.out.println("No results found :(");
 		} catch (SolrServerException | IOException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} // 		
+		} //
 		return result;
 	}
 	@Override

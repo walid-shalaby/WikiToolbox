@@ -9,6 +9,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -42,7 +44,8 @@ public class WikiContextGenerator {
 			if(cfg.onlinemode==false) {
 				try {
 					// open the index
-					indexReader = DirectoryReader.open(FSDirectory.open(new File(cfg.indexPath)));
+					//indexReader = DirectoryReader.open(FSDirectory.open(new File(cfg.indexPath)));
+					indexReader = DirectoryReader.open(FSDirectory.open(Paths.get(cfg.indexPath)));
 					searcher = new IndexSearcher(indexReader);
 				} catch (IOException e) {
 					e.printStackTrace();

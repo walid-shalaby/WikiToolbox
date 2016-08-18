@@ -32,11 +32,13 @@ class SolrUpdateThread implements Runnable{
 	int count;
 	boolean flymode = false;
 	boolean unknown = true;
-	SolrUpdateThread(String solr, String[] docs, int count, boolean flymode, boolean unknown) {
+	boolean single_update = false;
+	SolrUpdateThread(String solr, String[] docs, int count, boolean flymode, boolean single_update, boolean unknown) {
 		this.solr = solr;
 		this.docs = docs;
 		this.count = count;
 		this.flymode = flymode;
+		this.single_update = single_update;
 		this.unknown = unknown;
 	}
 	
@@ -50,9 +52,6 @@ class SolrUpdateThread implements Runnable{
 				// extract id
 				id = docs[i].substring(0,docs[i].indexOf("\t"));
 				if(SolrUpdate.ids.contains(id)==false) {
-					//System.out.println(String.format("Adding (%s)...", id));
-					System.out.println(docs[i]);
-					
 					// extract document xml
 					xml = docs[i].substring(docs[i].indexOf("\t")+1);
 					xml = xml.replace("\\n", "\n");
@@ -64,23 +63,27 @@ class SolrUpdateThread implements Runnable{
 				
 				// extract id
 				id = "unknown";
-				System.out.println(String.format("Adding (%s)...", id));
 				
 				// extract document xml
 				xml = docs[i];
 				xml = xml.replace("\\n", "\n");
 			}
 			if(xml.length()>0) {
-				if(xml.substring(0,5).compareTo("<add>")==0)
-					xml = xml.substring(5);
-				if(xml.substring(xml.length()-6,xml.length()).compareTo("</add>")==0)
-					xml = xml.substring(0,xml.length()-6);
-				allxml += xml;
+				if(single_update==true) {
+					SolrUpdate.sendUpdate(id, xml, solr, flymode, this.toString());
+				}
+				else {
+					if(xml.substring(0,5).compareTo("<add>")==0)
+						xml = xml.substring(5);
+					if(xml.substring(xml.length()-6,xml.length()).compareTo("</add>")==0)
+						xml = xml.substring(0,xml.length()-6);
+					allxml += xml;
+				}
 			}
 		}
-		if(allxml.length()>0) {
+		if(single_update==false && allxml.length()>0) {
 			allxml = "<add>" + allxml + "</add>";
-			SolrUpdate.sendUpdate(allxml, solr, flymode, this.toString());				
+			SolrUpdate.sendUpdate("multi",allxml, solr, flymode, this.toString());
 		}
 	}
 }
@@ -88,8 +91,8 @@ class SolrUpdateThread implements Runnable{
 public class SolrUpdate {
 	static public HashSet<String> ids = new HashSet<String>();
 	protected static void printUsage() {
-		System.out.println("Usage: java SolrUpdate --input input-dir --solr url-of-solr-update [--threads n] [--compressed y/n] [--thread-docs 100] [--flymode y/n] [--unknown y/n] [--ids path]");
-		System.out.println("E.g.,: java SolrUpdate --input /home/wshalaby/solr-update --solr http://localhost:8983/solr/update --threads 10 --thread-docs 100 --flymode n --unknown y");
+		System.out.println("Usage: java SolrUpdate --input input-dir --solr url-of-solr-update [--threads n] [--compressed y/n] [--thread-docs 100] [--flymode y/n] [--single-update y/n] [--unknown y/n] [--ids path] [--commit-after 1000]");
+		System.out.println("E.g.,: java SolrUpdate --input /home/wshalaby/solr-update --solr http://localhost:8983/solr/update --threads 10 --commit-after 1000 --flymode n [--single-update n] --unknown y");
 	}
 	/*public static void main(String[] args) {
 		HttpSolrServer server = new HttpSolrServer("http://localhost:8983/solr/wikipedia");
@@ -135,10 +138,12 @@ public class SolrUpdate {
 		String solr = "";
 		String idspath = "";
 		int numThreads = 1;
+		int commitAfter = 1000;
 		int threads_docs = 100;
 		boolean compressed = false;
 		boolean flymode = false;
-		boolean unknown = true;		
+		boolean unknown = true;
+		boolean single_update = false;
 		ExecutorService executor;
 		if(args.length>=4) {
 			for(int i=0; i<args.length; i++) {
@@ -160,8 +165,14 @@ public class SolrUpdate {
 				else if(args[i].equalsIgnoreCase("--unknown")) {
 					unknown = args[i+1].equalsIgnoreCase("y");
 				}
+				else if(args[i].equalsIgnoreCase("--single-update")) {
+					single_update = args[i+1].equalsIgnoreCase("y");
+				}
 				else if(args[i].equalsIgnoreCase("--thread-docs")) {
 					threads_docs = Integer.parseInt(args[i+1]);
+				}
+				else if(args[i].equalsIgnoreCase("--commit-after")) {
+					commitAfter = Integer.parseInt(args[i+1]);
 				}
 				else if(args[i].equalsIgnoreCase("--ids")) {
 					idspath = args[i+1];
@@ -188,13 +199,15 @@ public class SolrUpdate {
 							reader = new BufferedReader(new FileReader(input));
 						}
 						String line;
+						int commit_count = 0;
 						int count = 0;
 						while((line=reader.readLine())!=null) {
+							commit_count++;
 							if(numThreads>1){	
 								docs[count] = line;
 								count++;
 								if(count==threads_docs) {
-									executor.execute(new SolrUpdateThread(solr, docs, count, flymode, unknown));
+									executor.execute(new SolrUpdateThread(solr, docs, count, flymode, single_update, unknown));
 									docs = new String[threads_docs];
 									count = 0;
 								}
@@ -202,9 +215,27 @@ public class SolrUpdate {
 							else {
 								addDoc(line, solr, flymode, unknown);
 							}
+							
+							if(commit_count>=commitAfter){
+								try {
+									// commit changes
+									ProcessBuilder cmd;
+									if(System.getProperty("os.name").contains("Windows"))
+										cmd = new ProcessBuilder("curl", "\""+solr+"?commit=true\"");
+									else
+										cmd = new ProcessBuilder("curl", solr+"?commit=true");
+									cmd.redirectErrorStream(true);
+									Process p = cmd.start();
+									p.waitFor();
+									commit_count = 0;
+								} catch (IOException | InterruptedException e) {
+									// TODO Auto-generated catch block
+									e.printStackTrace();
+								}
+							}
 						}
 						if(count>0 && numThreads>1) {
-							executor.execute(new SolrUpdateThread(solr, docs, count, flymode, unknown));
+							executor.execute(new SolrUpdateThread(solr, docs, count, flymode, single_update, unknown));
 						}
 						reader.close();
 					} catch (IOException e) {
@@ -222,7 +253,24 @@ public class SolrUpdate {
 				}*/
 				while(!executor.isTerminated()) {							
 				}
-				while(true);
+				
+				try {					
+					// commit changes before exit
+					ProcessBuilder cmd;
+					if(System.getProperty("os.name").contains("Windows"))
+						cmd = new ProcessBuilder("curl", "\""+solr+"?commit=true\"");
+					else
+						cmd = new ProcessBuilder("curl", solr+"?commit=true");
+					cmd.redirectErrorStream(true);
+					Process p = cmd.start();
+					p.waitFor();
+				} catch (IOException | InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+				//if(numThreads>1)
+					//while(true);
 			}
 			else printUsage();
 		}
@@ -231,13 +279,13 @@ public class SolrUpdate {
 	}
 	private static void addDoc(String docxml, String solr, boolean flymode, boolean unknown) {
 		// TODO Auto-generated method stub		
-		String id, xml = "";
+		String id="", xml = "";
 		int indx = docxml.indexOf("\t");		
 		if(indx>0) {
 			// extract id
 			id = docxml.substring(0,docxml.indexOf("\t"));
 			if(SolrUpdate.ids.contains(id)==false) {
-				System.out.print(String.format("Adding (%s)...", id));
+				System.out.println(String.format("Adding (%s)...", id));
 				//System.out.println(docs[i]);
 				
 				// extract document xml
@@ -248,19 +296,17 @@ public class SolrUpdate {
 		else if(unknown==true) {
 			// extract id
 			id = "unknown";
-			System.out.print(String.format("Adding (%s)...", id));
 			
 			// extract document xml
 			xml = docxml;
 			xml = xml.replace("\\n", "\n");
 		}
 		if(xml.length()>0) {
-			sendUpdate(xml, solr, flymode, "1");
-			
+			sendUpdate(id, xml, solr, flymode, "1");			
 		}
 		
 	}
-	public static void sendUpdate(String xml, String solr, boolean flymode, String threadid) {
+	public static void sendUpdate(String id, String xml, String solr, boolean flymode, String threadid) {
 		// TODO Auto-generated method stub
 		try {
 			String tempfilename = "";
@@ -285,9 +331,9 @@ public class SolrUpdate {
 			}
 			else {
 				if(flymode==true)
-					cmd = new ProcessBuilder("curl","-H","Content-Type: text/xml","Accept-Charset: UTF-8",solr, "--data-binary",xml);
+					cmd = new ProcessBuilder("curl","-H","Content-Type: text/xml","-H","Accept-Charset: UTF-8",solr, "--data-binary",xml);
 				else
-					cmd = new ProcessBuilder("curl","-H","Content-Type: text/xml","Accept-Charset: UTF-8",solr, "--data-binary","@"+tempfilename);
+					cmd = new ProcessBuilder("curl","-H","Content-Type: text/xml","-H","Accept-Charset: UTF-8",solr, "--data-binary","@"+tempfilename);
 			}
 			cmd.redirectErrorStream(true);
 			Process p = cmd.start();
@@ -300,21 +346,11 @@ public class SolrUpdate {
 			br.close();
 			
 			// print invocation result
-			System.out.println("exit value: ("+String.valueOf(p.waitFor())+")");
-			//System.out.println(output);
-			
-
-			// commit changes
-			if(System.getProperty("os.name").contains("Windows"))
-				cmd = new ProcessBuilder("curl", "\""+solr+"?commit=true\"");
-			else
-				cmd = new ProcessBuilder("curl", solr+"?commit=true");
-			cmd.redirectErrorStream(true);
-			p = cmd.start();
+			System.out.print(String.format("Adding (%s)...exit value (%s)...(%s)", id,String.valueOf(p.waitFor()),output));
 			
 			// delete temporary file
 			if(flymode==false)
-				tempfile.delete();					
+				tempfile.delete();
 		} catch (IOException | InterruptedException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
