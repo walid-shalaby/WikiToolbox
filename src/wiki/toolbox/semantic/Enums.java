@@ -59,15 +59,25 @@ public class Enums {
 
 	public static enum ENUM_ANALYTIC_TYPE {
 	  e_UNKNOWN, 
-	  e_Search,
+	  e_SEARCH,
 	  e_TECH_EXPLORE,
 	  e_TECH_LANDSCAPE,
 	  e_CI,
 	  e_PRIOR,
-	  e_RELATEDNESS
+	  e_RELATEDNESS,
+	  e_RELEVANCY
 	}
 	
-	public static String getConceptTypeString(ENUM_CONCEPT_TYPE e) {
+	public static enum ENUM_IPC_FILTER {
+		  e_NONE, 
+		  e_IPC_SECTION,
+		  e_IPC_CLASS,
+		  e_IPC_SUBCLASS,
+		  e_IPC_GROUP,
+		  e_IPC_SUBGROUP
+		}
+		
+		public static String getConceptTypeString(ENUM_CONCEPT_TYPE e) {
 	    if(e==ENUM_CONCEPT_TYPE.e_TITLE)
 	      return "title";
 	    else if(e==ENUM_CONCEPT_TYPE.e_ANCHOR)

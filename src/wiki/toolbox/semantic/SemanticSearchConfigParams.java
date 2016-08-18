@@ -4,10 +4,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
+import wiki.toolbox.semantic.Enums.ENUM_IPC_FILTER;
+
 public class SemanticSearchConfigParams {
 	public Enums.ENUM_SEMANTIC_METHOD e_Method = Enums.ENUM_SEMANTIC_METHOD.e_MSA_SEE_ALSO;
 	public Enums.ENUM_DISTANCE_METRIC e_Distance = Enums.ENUM_DISTANCE_METRIC.e_COSINE;
 	public Enums.ENUM_ANALYTIC_TYPE e_analytic_type = Enums.ENUM_ANALYTIC_TYPE.e_UNKNOWN;
+	public ENUM_IPC_FILTER e_ipc_filter = Enums.ENUM_IPC_FILTER.e_NONE;
 	public boolean enable_title_search = false;
 	public boolean row_based = false;	
 	public boolean write_weights = false;
@@ -29,6 +32,7 @@ public class SemanticSearchConfigParams {
 	public boolean hidden_relax_categories = false;
 	public boolean hidden_relax_search = true;
 	public boolean hidden_include_q = false;
+	public boolean hidden_boolean = false;
 	public boolean hidden_relax_cache = true;
 	public boolean hidden_relax_disambig = false;
 	public boolean hidden_relax_listof = false;
@@ -36,6 +40,7 @@ public class SemanticSearchConfigParams {
 	public boolean hidden_relax_filters = false;
 	public boolean hidden_relatedness_experiment = false;
 	public boolean hidden_pagerank_weighting = false;
+	public boolean hidden_unquote_concepts = false;
 	public boolean abs_explicit = false;
 	public int hidden_max_hits = 1000;
 	public int hidden_min_wiki_length = 0;
@@ -46,7 +51,9 @@ public class SemanticSearchConfigParams {
 	public int hidden_max_title_ngrams = 3;
 	public int hidden_max_seealso_ngrams = 3;
 	public int concepts_num = 10;
+	public int results_num = 10;
 	public int ci_patents_num = 10;
+	public int priors_hits = 1000;
 	public boolean ci_freetext = false;
 	public int hidden_max_levels = 2;
 	public String semantics_separator = "\t";
@@ -57,6 +64,7 @@ public class SemanticSearchConfigParams {
 	public String hidden_wiki_extra_query = "AND NOT title:list* AND NOT title:index* AND NOT title:*disambiguation*";
 	public String in_path = "";
 	public String out_path = "";
+	public String[] relevancy_priors = null;
 	public HashMap<String,ArrayList<String>> fqs = null;
 	public HashSet<String> ignored_concepts = null;
 	public String wikiUrl = "http://localhost:5678/solr/collection1/";
@@ -214,6 +222,12 @@ public class SemanticSearchConfigParams {
 				else
 					hidden_relatedness_experiment = false;
 			}
+			else if(opts[i].compareToIgnoreCase("--unquote-concepts")==0 && ++i<opts.length) {
+				if(opts[i].compareToIgnoreCase("on")==0)
+					hidden_unquote_concepts = true;
+				else
+					hidden_unquote_concepts = false;
+			}			
 			else if(opts[i].compareToIgnoreCase("--pagerank")==0 && ++i<opts.length) {
 				if(opts[i].compareToIgnoreCase("on")==0)
 					hidden_pagerank_weighting = true;

@@ -182,39 +182,39 @@ public class SemanticsGenerator {
       String[] association = new String[2];
       while(line!=null) {
         String[] associations = line.split("#\\$#");
-        for(int i=0; i<associations.length; i++) {
-          
-          association = associations[i].split("/\\\\/\\\\");
-          if(association[0].length()==0) {
-        	  System.out.println("Opps: Unexpected line ("+line+")");
-        	  continue;
-          }
-        	  
-          // look it up
-          Integer index = titleIntMapping.get(association[0]);
-          if(index==null) { // add it
-            titleIntMapping.put(association[0], new Integer(curassoc));
-            titleStrMapping.put(new Integer(curassoc), association[0]);
-            idx = curassoc;
-            curassoc++;
-          }
-          else {
-            idx = index.intValue();
-          }
-          if(i==0) {
-            associationInfo = new CachedAssociationInfo(Integer.parseInt(association[1]));
-            key = idx;
-          }
-          else { // add it to associations
-            if(association.length!=2)
-              System.out.println(line);                        
-            else
-              associationInfo.addAssociation(idx,Integer.parseInt(association[1]));
-          }
+        association = associations[0].split("/\\\\/\\\\");
+        if(association[0].length()==0) {
+      	  System.out.println("Oops: Unexpected line ("+line+")");
         }
-        if(associations.length>0)
-          cachedAssociationsInfo.put(new Integer(key), associationInfo);
-        
+        else { 
+	        for(int i=0; i<associations.length; i++) {
+	          association = associations[i].split("/\\\\/\\\\");
+	          
+	          // look it up
+	          Integer index = titleIntMapping.get(association[0]);
+	          if(index==null) { // add it
+	            titleIntMapping.put(association[0], new Integer(curassoc));
+	            titleStrMapping.put(new Integer(curassoc), association[0]);
+	            idx = curassoc;
+	            curassoc++;
+	          }
+	          else {
+	            idx = index.intValue();
+	          }
+	          if(i==0) {
+	            associationInfo = new CachedAssociationInfo(Integer.parseInt(association[1]));
+	            key = idx;
+	          }
+	          else { // add it to associations
+	            if(association.length!=2)
+	              System.out.println(line);
+	            else
+	            	associationInfo.addAssociation(idx,Integer.parseInt(association[1]));
+	          }
+	        }
+	        if(associations.length>0)
+	          cachedAssociationsInfo.put(new Integer(key), associationInfo);
+      	}
         //if(cachedAssociationsInfo.size()>500000)
           //break;
         line = f.readLine();
@@ -406,101 +406,102 @@ public class SemanticsGenerator {
             // in this case we can add its see_also
             if(params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_SEE_ALSO || 
                 params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS_SEE_ALSO) { // add See also to the hit list
-              
-              Collection<Object> seeAlsoValues = doc.getFieldValues("seealso");
-              Collection<Object> seeAlsoNgramsValues = doc.getFieldValues("seealso_ngrams");
-              if(seeAlsoValues!=null) {
-            	  if(seeAlsoNgramsValues!=null) {
-	                Object[] multiSeeAlso = seeAlsoValues.toArray();
-	                /*HEREHERE*//*Object[] multiSeeAlsoNE = doc.getFieldValues("see_also_ne").toArray();*//*HEREHERE*/
-	                Object[] multiSeeAlsoNgrams = seeAlsoNgramsValues.toArray();              
-	                
-	                int min = Math.min(multiSeeAlsoNgrams.length,multiSeeAlso.length);
-	                for(int s=0; s<min; s++) {
-	                  //System.out.println(f.stringValue());
-	                  // check if relevant concept
-	                  relevantTitle = true; //TODO: do we need to call isRelevantConcept(multiSeeAlso[s].stringValue());
-	                  /*String re = "\\S+(\\s\\S+){0,"+String.valueOf(params.hidden_max_seealso_ngrams-1)+"}";
-	                  if(multiSeeAlso[s].stringValue().toLowerCase().matches(re)==false)
-	                    relevantTitle = false;
-	                  */
-	                  if(((Integer)multiSeeAlsoNgrams[s]).intValue()>params.hidden_max_seealso_ngrams)
-	                    relevantTitle = false;
-	                  
-	                  if(relevantTitle==true) {
-	                	String seealso = (String)multiSeeAlso[s];
-	                	cachedInfo = cachedConceptsInfo.get(seealso);
-	                    if(cachedInfo==null) {
-	                    	if(params.debug==true)
-	                    		System.out.println(seealso+"...see_also not found!");
-	                    	if(params.hidden_relax_cache==true)
-	                    		cachedInfo = new CachedConceptInfo(seealso, 0, "", "", "", 0);
-	                    }
-	                    else
-	                    	seealso = cachedInfo.title;  // might be redirect so get original title
-	                    
-	                	// check if already there
-	                    SemanticConcept sem = relatedConcepts.get(seealso); 
-	                    if(sem==null) { // new concept
-	                      if(cachedInfo!=null) {  
-	                        // get see also association info
-	                        int asso_cnt = 0;
-	                        if(cachedAssoInfo!=null) {
-	                          Integer I = titleIntMapping.get(seealso);
-	                          if(I!=null) {
-	                            for(Integer[] info :cachedAssoInfo.associations) {
-	                              if(info[0].intValue()==I.intValue()) {
-	                                asso_cnt = info[1].intValue();
-	                                break;
-	                              }
-	                            }
-	                            if(asso_cnt==0) {
-	                            	if(params.debug==true)
-	                            		System.out.println(seealso+"...see_also not in associations!");
-	                            }
-	                          }
-	                          else {
-	                        	  if(params.debug==true)
-	                        		  System.out.println(seealso+"...see_also not in mappings!");
-	                          }
-	                        }
-	                        if((cachedInfo.length==0 || cachedInfo.length>=params.hidden_min_seealso_length) && 
-	                            (asso_cnt==0 || (params.hidden_min_confidence>0.0 && ((float)asso_cnt)/cachedAssoInfo.sup>=params.hidden_min_confidence) || 
-	                            (params.hidden_min_confidence<0.00001 && asso_cnt>=params.hidden_min_asso_cnt))) { // support > minimum support
-	                        	if(params.hidden_pagerank_weighting==false) { 
-	                        		sem = new SemanticConcept(seealso, 
-	                        				cachedInfo, ""/*HEREHERE*//*(String)multiSeeAlsoNE[s]*//*HEREHERE*/, 
-	                        				score-0.0002f, cur_id, cur_parent_id, asso_cnt, Enums.ENUM_CONCEPT_TYPE.e_SEE_ALSO, 
-	                        				cachedInfo.pagerank);
-	                        	}
-	                        	else {
-	                        		sem = new SemanticConcept(seealso, 
-	                        				cachedInfo, ""/*HEREHERE*//*(String)multiSeeAlsoNE[s]*//*HEREHERE*/, 
-	                        				cachedInfo.pagerank, cur_id, cur_parent_id, asso_cnt, Enums.ENUM_CONCEPT_TYPE.e_SEE_ALSO, 
-	                        				score-0.0002f);
-	                        	}
-	                          cur_id++;                      
-	                        }
-	                      }
-	                    }
-	                    else { // existing concept, update its weight to higher weight
-	                      cachedInfo = sem.cachedInfo;
-	                      if(params.hidden_pagerank_weighting==false) {
-	                    	  sem.weight = sem.weight>score-0.0002f?sem.weight:score-0.0002f;
-	                      }	                    	  
-	                    }
-	                    if(sem!=null)
-	                      relatedConcepts.put(sem.name, sem);            
-	                  }
-	                  //else
-	                    //System.out.println(multiSeeAlso[s].stringValue()+"...see-also not relevant!");
-	                  //System.out.println();
-	                }
-              	}
-            	else {
-            		System.out.println("Oops! unexpected null seealso ngrams for ("+title+"<->"+(String) doc.getFieldValue("title")+")");
-            	}
-              }
+            	IntegerWrap Cur_Id = new IntegerWrap(cur_id);
+            	getSeeAlso(doc, cachedAssoInfo, score, Cur_Id, cur_parent_id, relatedConcepts, params);
+//              Collection<Object> seeAlsoValues = doc.getFieldValues("seealso");
+//              Collection<Object> seeAlsoNgramsValues = doc.getFieldValues("seealso_ngrams");
+//              if(seeAlsoValues!=null) {
+//            	  if(seeAlsoNgramsValues!=null) {
+//	                Object[] multiSeeAlso = seeAlsoValues.toArray();
+//	                /*HEREHERE*//*Object[] multiSeeAlsoNE = doc.getFieldValues("see_also_ne").toArray();*//*HEREHERE*/
+//	                Object[] multiSeeAlsoNgrams = seeAlsoNgramsValues.toArray();              
+//	                
+//	                int min = Math.min(multiSeeAlsoNgrams.length,multiSeeAlso.length);
+//	                for(int s=0; s<min; s++) {
+//	                  //System.out.println(f.stringValue());
+//	                  // check if relevant concept
+//	                  relevantTitle = true; //TODO: do we need to call isRelevantConcept(multiSeeAlso[s].stringValue());
+//	                  /*String re = "\\S+(\\s\\S+){0,"+String.valueOf(params.hidden_max_seealso_ngrams-1)+"}";
+//	                  if(multiSeeAlso[s].stringValue().toLowerCase().matches(re)==false)
+//	                    relevantTitle = false;
+//	                  */
+//	                  if(((Integer)multiSeeAlsoNgrams[s]).intValue()>params.hidden_max_seealso_ngrams)
+//	                    relevantTitle = false;
+//	                  
+//	                  if(relevantTitle==true) {
+//	                	String seealso = (String)multiSeeAlso[s];
+//	                	cachedInfo = cachedConceptsInfo.get(seealso);
+//	                    if(cachedInfo==null) {
+//	                    	if(params.debug==true)
+//	                    		System.out.println(seealso+"...see_also not found!");
+//	                    	if(params.hidden_relax_cache==true)
+//	                    		cachedInfo = new CachedConceptInfo(seealso, 0, "", "", "", 0);
+//	                    }
+//	                    else
+//	                    	seealso = cachedInfo.title;  // might be redirect so get original title
+//	                    
+//	                	// check if already there
+//	                    SemanticConcept sem = relatedConcepts.get(seealso); 
+//	                    if(sem==null) { // new concept
+//	                      if(cachedInfo!=null) {  
+//	                        // get see also association info
+//	                        int asso_cnt = 0;
+//	                        if(cachedAssoInfo!=null) {
+//	                          Integer I = titleIntMapping.get(seealso);
+//	                          if(I!=null) {
+//	                            for(Integer[] info :cachedAssoInfo.associations) {
+//	                              if(info[0].intValue()==I.intValue()) {
+//	                                asso_cnt = info[1].intValue();
+//	                                break;
+//	                              }
+//	                            }
+//	                            if(asso_cnt==0) {
+//	                            	if(params.debug==true)
+//	                            		System.out.println(seealso+"...see_also not in associations!");
+//	                            }
+//	                          }
+//	                          else {
+//	                        	  if(params.debug==true)
+//	                        		  System.out.println(seealso+"...see_also not in mappings!");
+//	                          }
+//	                        }
+//	                        if((cachedInfo.length==0 || cachedInfo.length>=params.hidden_min_seealso_length) && 
+//	                            (asso_cnt==0 || (params.hidden_min_confidence>0.0 && ((float)asso_cnt)/cachedAssoInfo.sup>=params.hidden_min_confidence) || 
+//	                            (params.hidden_min_confidence<0.00001 && asso_cnt>=params.hidden_min_asso_cnt))) { // support > minimum support
+//	                        	if(params.hidden_pagerank_weighting==false) { 
+//	                        		sem = new SemanticConcept(seealso, 
+//	                        				cachedInfo, ""/*HEREHERE*//*(String)multiSeeAlsoNE[s]*//*HEREHERE*/, 
+//	                        				score-0.0002f, cur_id, cur_parent_id, asso_cnt, Enums.ENUM_CONCEPT_TYPE.e_SEE_ALSO, 
+//	                        				cachedInfo.pagerank);
+//	                        	}
+//	                        	else {
+//	                        		sem = new SemanticConcept(seealso, 
+//	                        				cachedInfo, ""/*HEREHERE*//*(String)multiSeeAlsoNE[s]*//*HEREHERE*/, 
+//	                        				cachedInfo.pagerank, cur_id, cur_parent_id, asso_cnt, Enums.ENUM_CONCEPT_TYPE.e_SEE_ALSO, 
+//	                        				score-0.0002f);
+//	                        	}
+//	                          cur_id++;                      
+//	                        }
+//	                      }
+//	                    }
+//	                    else { // existing concept, update its weight to higher weight
+//	                      cachedInfo = sem.cachedInfo;
+//	                      if(params.hidden_pagerank_weighting==false) {
+//	                    	  sem.weight = sem.weight>score-0.0002f?sem.weight:score-0.0002f;
+//	                      }	                    	  
+//	                    }
+//	                    if(sem!=null)
+//	                      relatedConcepts.put(sem.name, sem);            
+//	                  }
+//	                  //else
+//	                    //System.out.println(multiSeeAlso[s].stringValue()+"...see-also not relevant!");
+//	                  //System.out.println();
+//	                }
+//              	}
+//            	else {
+//            		System.out.println("Oops! unexpected null seealso ngrams for ("+title+"<->"+(String) doc.getFieldValue("title")+")");
+//            	}
+//              }
             }
             else if(params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_SEE_ALSO_ASSO || 
                 params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS_SEE_ALSO_ASSO) { // add see also using association mining
@@ -519,6 +520,243 @@ public class SemanticsGenerator {
     	System.out.println("Error executing query: "+queryString);
     	e.printStackTrace();      
     }
+  }
+  
+  public HashMap<String, SemanticConcept> getSeeAlso(String concept, SemanticSearchConfigParams params) {
+	  HashMap<String, SemanticConcept> relatedConcepts = new HashMap<String, SemanticConcept>();
+	  CachedConceptInfo cachedInfo = cachedConceptsInfo.get(concept);
+	  if(cachedInfo!=null) {
+	    // retrieve related concepts
+	    String queryString = "";
+	    queryString += "id:"+cachedInfo.docno;
+	    
+	    if(params.debug==true)
+	    	System.out.println("Query: "+ queryString);
+	    
+	    HttpSolrServer server = new HttpSolrServer(params.wikiUrl);
+	    ModifiableSolrParams conceptsQParams = new ModifiableSolrParams();
+	    conceptsQParams.set(CommonParams.Q, queryString);
+	    conceptsQParams.set("defType","edismax");
+	    conceptsQParams.set(CommonParams.ROWS, 1);
+	    
+	    // add target extract field
+	    conceptsQParams.set("fl", new String[]{"score","title","anchor","seealso","seealso_ngrams","pagerank"});
+	    QueryResponse conceptsQResp;
+	    try {
+	      conceptsQResp = server.query(conceptsQParams);
+	    
+	      // loop on results and add to concepts
+	      SolrDocumentList results = conceptsQResp.getResults();
+	      if(results!=null && results.size()==1) {
+	        int cur_id = 1;
+	        int cur_parent_id = 0;	        
+	        
+	          SolrDocument doc = results.get(0);
+	          boolean relevant = false;
+	          String title = (String) doc.getFieldValue("title");
+	          if(title.equals(concept)){
+		          float score = ((Float) doc.getFieldValue("score")).floatValue();
+		          Object obj = doc.getFieldValue("pagerank");
+		          float pagerank = 0;
+		          if(obj!=null)
+		          	pagerank = ((Double) obj).floatValue();          
+		          String ner = "";
+		          /*HEREHERE*///String ner = indexReader.document(hits[i].doc).getField("title_ne").stringValue();/*HEREHERE*/
+		          CachedAssociationInfo cachedAssoInfo = null;
+		          
+		          //System.out.println(title.stringValue());
+		          // check if relevant concept
+		          boolean relevantTitle = true;//TODO: do we need to call isRelevantConcept(f.stringValue());
+		          if(relevantTitle==true) {
+		            relevant = true;            
+		                           
+	                // get its associations
+	                if(params.e_Method!=Enums.ENUM_SEMANTIC_METHOD.e_MSA && 
+	                    params.e_Method!=Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS) {
+	                  Integer I = titleIntMapping.get(title);
+	                  if(I!=null) {
+	                    cachedAssoInfo = cachedAssociationsInfo.get(I);
+	                  }
+	                  else {
+	                	  //if(params.debug==true)
+	                	  System.out.println(title+"...title not in mappings!");
+	                  }
+	                }      
+		          }
+		          else {
+		        	  if(params.debug==true)
+		        		  System.out.println(title+"...title not relevant!");
+		          }
+//		          if(relevant==true && (params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS || 
+//		                  params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS_SEE_ALSO || 
+//		                      params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS_SEE_ALSO_ASSO)) // retrieve anchors
+//		          {
+//		            relevant = false;
+//		            Collection<Object> anchorValues = doc.getFieldValues("anchor");
+//		            if(anchorValues!=null) {
+//		              Object[] anchors = anchorValues.toArray();
+//		              for(int t=0; t<anchors.length; t++) {
+//		                String anchor = (String) anchors[t];
+//		                //System.out.println(f.stringValue());
+//		                // check if relevant concept
+//		                relevantTitle = true;//TODO: do we need to call isRelevantConcept(f.stringValue());
+//		                if(relevantTitle==true) {
+//		                  relevant = true;
+//		                  
+//		                  // check if already there
+//		                  SemanticConcept sem = relatedConcepts.get(anchor);
+//		                  if(sem==null) { // new concept                  
+//		                	  if(params.hidden_pagerank_weighting==false) {
+//		                		  sem = new SemanticConcept(anchor, cachedInfo, ner, score-0.0001f, 
+//		                				  cur_id, cur_parent_id, 0, Enums.ENUM_CONCEPT_TYPE.e_ANCHOR, cachedInfo.pagerank);
+//		                      }
+//		                	  else {
+//		                		  sem = new SemanticConcept(anchor, cachedInfo, ner, cachedInfo.pagerank, 
+//		                				  cur_id, cur_parent_id, 0, Enums.ENUM_CONCEPT_TYPE.e_ANCHOR, score-0.0001f);
+//		                	  }
+//		                    cur_id++;
+//		                  }
+//		                  else { // existing concept, update its weight to higher weight
+//		                    cachedInfo = sem.cachedInfo;
+//		                    if(params.hidden_pagerank_weighting==false) {
+//		                    	sem.weight = sem.weight>score-0.0001f?sem.weight:score-0.0001f;
+//		                    }
+//		                  }
+//		                  if(sem!=null)
+//		                    relatedConcepts.put(sem.name, sem);                
+//		                }
+//		                else {
+//		                	if(params.debug==true)
+//		                		System.out.println(anchor+"...title not relevant!");
+//		                }
+//		              }
+//		            }
+//		          }
+		          
+		          //System.out.println();
+		          if(params.hidden_relax_see_also==false || relevant) {
+		            // force see also is enabled OR,
+		            // the original title or one of its anchors is relevant
+		            // in this case we can add its see_also
+		            if(params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_SEE_ALSO || 
+		                params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS_SEE_ALSO) { // add See also to the hit list
+		            	IntegerWrap Cur_Id = new IntegerWrap(1);
+		            	getSeeAlso(doc, cachedAssoInfo, score, Cur_Id, 0, relatedConcepts, params);
+		            }
+		          }
+	          }	        
+	      }
+	      else {
+	    	  if(params.debug==true)
+	    		  System.out.println("No semantic results found :(");
+	      }
+	    } catch (SolrServerException e) {
+	    	System.out.println("Error executing query: "+queryString);
+	    	e.printStackTrace();      
+	    }
+	  }
+	  return relatedConcepts;
+  }
+  
+  private void getSeeAlso(SolrDocument doc, CachedAssociationInfo cachedAssoInfo, 
+		  float score, IntegerWrap Cur_Id, int cur_parent_id, 
+		  HashMap<String, SemanticConcept> relatedConcepts, SemanticSearchConfigParams params) {
+	// TODO Auto-generated method stub
+	  String title = (String) doc.getFieldValue("title");
+	  Collection<Object> seeAlsoValues = doc.getFieldValues("seealso");
+      Collection<Object> seeAlsoNgramsValues = doc.getFieldValues("seealso_ngrams");
+      if(seeAlsoValues!=null) {
+    	  if(seeAlsoNgramsValues!=null) {
+            Object[] multiSeeAlso = seeAlsoValues.toArray();
+            /*HEREHERE*//*Object[] multiSeeAlsoNE = doc.getFieldValues("see_also_ne").toArray();*//*HEREHERE*/
+            Object[] multiSeeAlsoNgrams = seeAlsoNgramsValues.toArray();              
+            
+            int min = Math.min(multiSeeAlsoNgrams.length,multiSeeAlso.length);
+            for(int s=0; s<min; s++) {
+              //System.out.println(f.stringValue());
+              // check if relevant concept
+              boolean relevantTitle = true; //TODO: do we need to call isRelevantConcept(multiSeeAlso[s].stringValue());
+              /*String re = "\\S+(\\s\\S+){0,"+String.valueOf(params.hidden_max_seealso_ngrams-1)+"}";
+              if(multiSeeAlso[s].stringValue().toLowerCase().matches(re)==false)
+                relevantTitle = false;
+              */
+              if(((Integer)multiSeeAlsoNgrams[s]).intValue()>params.hidden_max_seealso_ngrams)
+                relevantTitle = false;
+              
+              if(relevantTitle==true) {
+            	String seealso = (String)multiSeeAlso[s];
+            	CachedConceptInfo cachedInfo = cachedConceptsInfo.get(seealso);
+                if(cachedInfo==null) {
+                	if(params.debug==true)
+                		System.out.println(seealso+"...see_also not found!");
+                	if(params.hidden_relax_cache==true)
+                		cachedInfo = new CachedConceptInfo(seealso, 0, "", "", "", 0);
+                }
+                else
+                	seealso = cachedInfo.title;  // might be redirect so get original title
+                
+            	// check if already there
+                SemanticConcept sem = relatedConcepts.get(seealso); 
+                if(sem==null) { // new concept
+                  if(cachedInfo!=null) {  
+                    // get see also association info
+                    int asso_cnt = 0;
+                    if(cachedAssoInfo!=null) {
+                      Integer I = titleIntMapping.get(seealso);
+                      if(I!=null) {
+                        for(Integer[] info :cachedAssoInfo.associations) {
+                          if(info[0].intValue()==I.intValue()) {
+                            asso_cnt = info[1].intValue();
+                            break;
+                          }
+                        }
+                        if(asso_cnt==0) {
+                        	if(params.debug==true)
+                        		System.out.println(seealso+"...see_also not in associations!");
+                        }
+                      }
+                      else {
+                    	  if(params.debug==true)
+                    		  System.out.println(seealso+"...see_also not in mappings!");
+                      }
+                    }
+                    if((cachedInfo.length==0 || cachedInfo.length>=params.hidden_min_seealso_length) && 
+                        (asso_cnt==0 || (params.hidden_min_confidence>0.0 && ((float)asso_cnt)/cachedAssoInfo.sup>=params.hidden_min_confidence) || 
+                        (params.hidden_min_confidence<0.00001 && asso_cnt>=params.hidden_min_asso_cnt))) { // support > minimum support
+                    	if(params.hidden_pagerank_weighting==false) { 
+                    		sem = new SemanticConcept(seealso, 
+                    				cachedInfo, ""/*HEREHERE*//*(String)multiSeeAlsoNE[s]*//*HEREHERE*/, 
+                    				score-0.0002f, Cur_Id.value, cur_parent_id, asso_cnt, Enums.ENUM_CONCEPT_TYPE.e_SEE_ALSO, 
+                    				cachedInfo.pagerank);
+                    	}
+                    	else {
+                    		sem = new SemanticConcept(seealso, 
+                    				cachedInfo, ""/*HEREHERE*//*(String)multiSeeAlsoNE[s]*//*HEREHERE*/, 
+                    				cachedInfo.pagerank, Cur_Id.value, cur_parent_id, asso_cnt, Enums.ENUM_CONCEPT_TYPE.e_SEE_ALSO, 
+                    				score-0.0002f);
+                    	}
+                    	Cur_Id.inc();                      
+                    }
+                  }
+                }
+                else { // existing concept, update its weight to higher weight
+                  cachedInfo = sem.cachedInfo;
+                  if(params.hidden_pagerank_weighting==false) {
+                	  sem.weight = sem.weight>score-0.0002f?sem.weight:score-0.0002f;
+                  }	                    	  
+                }
+                if(sem!=null)
+                  relatedConcepts.put(sem.name, sem);            
+              }
+              //else
+                //System.out.println(multiSeeAlso[s].stringValue()+"...see-also not relevant!");
+              //System.out.println();
+            }
+      	}
+    	else {
+    		System.out.println("Oops! unexpected null seealso ngrams for ("+title+"<->"+(String) doc.getFieldValue("title")+")");
+    	}
+      }
   }
   
   public HashMap<String, SemanticConcept> getSeeAlsoAsso(String title, SemanticSearchConfigParams params) {
@@ -1009,49 +1247,49 @@ public class SemanticsGenerator {
   }
   
   public NamedList<Object> doSemanticSearch(String concept, SemanticSearchConfigParams params) {
-    NamedList<Object> semanticConceptsInfo = null;
-    HashMap<String,SemanticConcept> relatedConcepts = null;
-    
-    // retrieve related semantic concepts      
-    relatedConcepts = new HashMap<String,SemanticConcept>();
-    retrieveRelatedConcepts(concept, relatedConcepts, params);
-    
-    // remove irrelevant concepts
-    if(params.hidden_relax_filters==false)
-    	filterRelatedConcepts(relatedConcepts, params);
-    
-    if(relatedConcepts.size()>0) {        
-      // sort concepts
-      SemanticConcept sem[] = new SemanticConcept[relatedConcepts.size()];
-      sem = (SemanticConcept[])relatedConcepts.values().toArray(sem);
-      Arrays.sort(sem, Collections.reverseOrder());
-      
-      // add concepts to response
-      semanticConceptsInfo = new SimpleOrderedMap<Object>();
-      for(int i=0,j=0; i<params.concepts_num && i<sem.length; j++) {
-        // remove a concept that exactly match original concept
-        if(params.hidden_relax_same_title==false && concept.compareToIgnoreCase(sem[j].name)==0) {
-        	if(params.debug==true)
-        		System.out.println(sem[j].name+"...Removed!");
-          continue;
-        }
-        if(params.ignored_concepts!=null && params.ignored_concepts.contains(sem[j].name)) {
-          // set ignored flag
-          sem[j].ignore = 1;
-        }
-        SimpleOrderedMap<Object> conceptInfo = sem[j].getInfo();
-        //semanticConceptsInfo.add(sem[j].name, sem[j].weight);
-        semanticConceptsInfo.add(sem[j].name, conceptInfo);
-        if(!params.abs_explicit || sem[j].e_concept_type==Enums.ENUM_CONCEPT_TYPE.e_TITLE)
-            i++;
-      }
-      
-      // add related concepts to the query
-      //if(params.hidden_relax_search==false)
-      //  qparams.set(CommonParams.Q, newQuery);
-      
-      //req.setParams(qparams);
-    }
+    NamedList<Object> semanticConceptsInfo = new SimpleOrderedMap<Object>();//semanticConceptsInfo = null;
+    //HashMap<String,SemanticConcept> relatedConcepts = null;
+    if(params.concepts_num>0) {
+	    // retrieve related semantic concepts      
+	    HashMap<String,SemanticConcept> relatedConcepts = new HashMap<String,SemanticConcept>();
+	    retrieveRelatedConcepts(concept, relatedConcepts, params);
+	    
+	    // remove irrelevant concepts
+	    if(params.hidden_relax_filters==false)
+	    	filterRelatedConcepts(relatedConcepts, params);
+	    
+	    if(relatedConcepts.size()>0) {        
+	      // sort concepts
+	      SemanticConcept sem[] = new SemanticConcept[relatedConcepts.size()];
+	      sem = (SemanticConcept[])relatedConcepts.values().toArray(sem);
+	      Arrays.sort(sem, Collections.reverseOrder());
+	      
+	      // add concepts to response
+	      for(int i=0,j=0; i<params.concepts_num && i<sem.length && j<sem.length; j++) {
+	        // remove a concept that exactly match original concept
+	        if(params.hidden_relax_same_title==false && concept.compareToIgnoreCase(sem[j].name)==0) {
+	        	if(params.debug==true)
+	        		System.out.println(sem[j].name+"...Removed!");
+	          continue;
+	        }
+	        if(params.ignored_concepts!=null && params.ignored_concepts.contains(sem[j].name)) {
+	          // set ignored flag
+	          sem[j].ignore = 1;
+	        }
+	        SimpleOrderedMap<Object> conceptInfo = sem[j].getInfo();
+	        //semanticConceptsInfo.add(sem[j].name, sem[j].weight);
+	        semanticConceptsInfo.add(sem[j].name, conceptInfo);
+	        if(!params.abs_explicit || sem[j].e_concept_type==Enums.ENUM_CONCEPT_TYPE.e_TITLE)
+	            i++;
+	      }
+	      
+	      // add related concepts to the query
+	      //if(params.hidden_relax_search==false)
+	      //  qparams.set(CommonParams.Q, newQuery);
+	      
+	      //req.setParams(qparams);
+	    }
+  	}
     return semanticConceptsInfo;
   }
   
