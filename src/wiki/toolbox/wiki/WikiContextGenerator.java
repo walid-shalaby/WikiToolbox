@@ -9,6 +9,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -37,11 +39,19 @@ public class WikiContextGenerator {
 			displayUsage();
 		else
 		{
-			try {
-				// open the index
-				IndexReader indexReader = DirectoryReader.open(FSDirectory.open(new File(cfg.indexPath)));
-				IndexSearcher searcher = new IndexSearcher(indexReader);
-				
+			IndexReader indexReader = null;
+			IndexSearcher searcher = null;
+			if(cfg.onlinemode==false) {
+				try {
+					// open the index
+					//indexReader = DirectoryReader.open(FSDirectory.open(new File(cfg.indexPath)));
+					indexReader = DirectoryReader.open(FSDirectory.open(Paths.get(cfg.indexPath)));
+					searcher = new IndexSearcher(indexReader);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+			try {	
 				// open source file
 				BufferedReader in = new BufferedReader(new FileReader(cfg.input));
 				if(in!=null)
@@ -85,7 +95,10 @@ public class WikiContextGenerator {
 							labelsDic.add(labels[lineNo]);
 						}
 						if(++lineNo%cfg.blockSize==0) {
-							executor.execute(new ContextGenerator(samples, labels, cfg, indexReader, searcher));
+							if(cfg.onlinemode==true)
+								executor.execute(new ContextGenerator(samples, labels, cfg));
+							else
+								executor.execute(new ContextGenerator(samples, labels, cfg, indexReader, searcher));
 							samples =  new String[cfg.blockSize];
 							labels = new String[cfg.blockSize];
 							lineNo = 0;
@@ -131,9 +144,10 @@ public class WikiContextGenerator {
 				+ "[--write-text] "
 				+ "[--write-highlights] "
 				+ "[--write-categories] "
-				+ "[--categories-num num-categories-to-write ]"
-				+ "[--threads-num num-threads-to-run ]"
-				+ "[--block-size block-size-per-thread ]"
-				+ "[--debug ]");
+				+ "[--categories-num num-categories-to-write]"
+				+ "[--threads-num num-threads-to-run]"
+				+ "[--block-size block-size-per-thread]" 
+				+ "[--online-mode]"
+				+ "[--debug]");
 	}
 }

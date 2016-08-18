@@ -64,6 +64,9 @@ public class WikiSearchConfig {
 	// block size per thread
 	int blockSize = 10000;
 	
+	// title flag
+	public boolean onlinemode = false;		
+		
 	// debug flag
 	boolean debug = false;
 	
@@ -82,6 +85,9 @@ public class WikiSearchConfig {
 			}
 			else if(opts[i].compareToIgnoreCase("--output")==0 && ++i<opts.length) {
 				outPath = opts[i]; 
+			}
+			else if(opts[i].compareToIgnoreCase("--online-mode")==0) {
+				onlinemode = true;
 			}
 			else if(opts[i].compareToIgnoreCase("--field")==0 && ++i<opts.length) {
 				searchField = opts[i]; 

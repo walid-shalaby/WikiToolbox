@@ -244,7 +244,7 @@ public class IndexUpdater {
 					cache.add(value);
 		        }
 		      }
-		    }catch (SolrServerException e) {
+		    }catch (SolrServerException | IOException e) {
 		    	e.printStackTrace();      
 		    }   
 	    }

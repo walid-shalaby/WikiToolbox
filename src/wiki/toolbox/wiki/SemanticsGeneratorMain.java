@@ -210,17 +210,24 @@ public class SemanticsGeneratorMain implements Runnable{
 		//sc.close();
 		
 		if(args.length>0) {
-			SemanticSearchConfigParams cfg = new SemanticSearchConfigParams();
-			if(cfg.parseOpts(args)==false)
-				displayUsage();
-			else
-			{
-				if(cfg.hidden_relatedness_experiment==true) {
-					SemanticsUtils.doRelatednessExperiment(cfg);
+			if(args.length==2) {
+				System.out.println(args[0]);
+				System.out.println(args[1]);
+				processFile(args[0], Integer.parseInt(args[1]));
+			}
+			else {
+				SemanticSearchConfigParams cfg = new SemanticSearchConfigParams();
+				if(cfg.parseOpts(args)==false)
+					displayUsage();
+				else
+				{
+					if(cfg.hidden_relatedness_experiment==true) {
+						SemanticsUtils.doRelatednessExperiment(cfg);
+					}
+					else {
+						SemanticsUtils.doGenerateSemantics(cfg);
+					}	
 				}
-				else {
-					SemanticsUtils.doGenerateSemantics(cfg);
-				}	
 			}
 		}
 		else 
@@ -228,47 +235,52 @@ public class SemanticsGeneratorMain implements Runnable{
 	}
 	private static void doInteractiveMode() {
 		// TODO Auto-generated method stub
-		Scanner sc = new Scanner(System.in);
 		while(true) {
+			Scanner sc = new Scanner(System.in);			
 			System.out.print("enter commands path: ");
+			while(!sc.hasNextLine()) {
+				sc.next();
+			}
 			String s = sc.nextLine();
+			System.out.print("enter number of threads: ");
+			int numThreads = sc.nextInt();
+			sc.close();
 			if(s.length()>0) {
-				System.out.print("enter number of threads: ");
-				int numThreads = sc.nextInt();
-				ExecutorService executor = Executors.newFixedThreadPool(numThreads);
-				try {
-					// open source file
-					BufferedReader in = new BufferedReader(new FileReader(s));
-					if(in!=null)
-					{
-						// loop on input records
-						String line = in.readLine();
-						while(line!=null) {
-							executor.execute(new SemanticsCommandsMain(line));
-							line = in.readLine();
-						}
-						
-						in.close();
-						
-						// wait for all threads to complete.
-						executor.shutdown();
-						while(!executor.isTerminated()) {							
-						}
-					}
-					System.out.println("Done processing commands :)");
-					
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					
-					e.printStackTrace();
-				}
+				processFile(s, numThreads);
 			}
 			else
 				break;
 		}
-		sc.close();
 	}
 
+	private static void processFile(String filepath, int numThreads) {
+		ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+		try {
+			// open source file
+			BufferedReader in = new BufferedReader(new FileReader(filepath));
+			if(in!=null) {
+				// loop on input records
+				String line = in.readLine();
+				while(line!=null) {
+					executor.execute(new SemanticsCommandsMain(line));
+					line = in.readLine();
+				}
+				
+				in.close();
+				
+				// wait for all threads to complete.
+				executor.shutdown();
+				while(!executor.isTerminated()) {							
+				}
+			}
+			System.out.println("Done processing commands :)");
+			
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			
+			e.printStackTrace();
+		}
+	}
 	static void displayUsage() {
 		System.out.println("java -jar semantics_generator.jar "
 				+ "--url path-to-wiki-solr-instance "
