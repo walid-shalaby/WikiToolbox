@@ -114,13 +114,15 @@ public class WikiAssocMiner {
 				
 			// write all see_also transactions
 			FileWriter seeWriter = new FileWriter(new File(outpath+"/wiki_seealso.arff"));
-			seeWriter.write("@relation wiki_seealso.symbolic\n\n");		
+			seeWriter.write("@relation wiki_seealso.symbolic\n\n");
+			
+			FileWriter alsoWriter = new FileWriter(new File(outpath+"/wiki_seealso.txt"));
 				
 	        for(int i=0; i<results.size(); i++) {
 	        	SolrDocument doc = results.get(i);
 	        	
 				// get title
-				String title = (String)doc.getFieldValue("title");					
+				String title = (String)doc.getFieldValue("title");
 				
 				if(toKeep.size()==0 || toKeep.contains(title)) {
 					seeWriter.write("@attribute \""+title.replace("\\", "\\\\")+"\" {f,t}\n");
@@ -140,19 +142,22 @@ public class WikiAssocMiner {
 	        seeWriter.write("\n\n@data\n");
 	        
 	        for(int i=0; i<results.size(); i++) {
-	        	ArrayList<String> titles = new ArrayList<String>(300); 
 	        	SolrDocument doc = results.get(i);
+
+	        	ArrayList<String> titles = new ArrayList<String>(300);
+	        	Integer idx = new Integer(-1);
 	        	
-				// get title
+	        	// get title
 	        	String title = (String)doc.getFieldValue("title");
-				titles.add(title);
-				
-				Integer idx = wikiTopics.get(title);
-				if(idx==null) {
-					System.out.println(title+" -- invalid title");
-					continue;
-				}
-				
+				if(toKeep.size()==0 || toKeep.contains(title)) {
+					titles.add(title);
+		        	
+					idx = wikiTopics.get(title);
+					if(idx==null) {
+						System.out.println(title+" -- invalid title");
+						continue;
+					}
+				}	
 				// get see also
 				int j = 0;
 				Collection<Object> seeAlsoValues = doc.getFieldValues("seealso");
@@ -162,13 +167,13 @@ public class WikiAssocMiner {
 					Object[] multiSeeAlso = seeAlsoValues.toArray();
 					for(j=0; j<multiSeeAlso.length; j++) {
 						Integer sidx = wikiTopics.get((String)multiSeeAlso[j]);
-						if(sidx!=null) {
+						if(sidx!=null && (toKeep.size()==0 || toKeep.contains((String)multiSeeAlso[j]))) {
 							idxs.add(sidx);
 							titles.add((String)multiSeeAlso[j]);
 						}
 						else {
 							String orgtitle = wikiRedirects.get((String)multiSeeAlso[j]);
-							if(orgtitle!=null) {
+							if(orgtitle!=null && (toKeep.size()==0 || toKeep.contains((String)multiSeeAlso[j]))) {
 								idxs.add(wikiTopics.get(orgtitle));
 								titles.add(orgtitle);
 							}
@@ -177,8 +182,17 @@ public class WikiAssocMiner {
 						}
 					}
 					if(idxs.size()>0) {
-						// add original title
-						idxs.add(idx);
+						if(idx!=-1)	{
+							// add original title
+							idxs.add(idx);
+							
+							alsoWriter.write(title+"/\\/\\"+"1");
+							for(String t : titles) {
+								if(t.compareToIgnoreCase(title)!=0)
+									alsoWriter.write("#$#"+t+"/\\/\\"+"1");
+							}
+							alsoWriter.write("\n");
+						}
 						
 						// sort out indices
 						Integer[] sidxs = new Integer[idxs.size()];
@@ -196,6 +210,7 @@ public class WikiAssocMiner {
 				updateCounts(titles, wikiAssociations, wikiTopicsCounts);
 	        }
 	        seeWriter.close();
+	        alsoWriter.close();
 	        
 	        // write all associations
 			FileWriter assocWriter = new FileWriter(new File(outpath+"/wiki_associations.txt"));

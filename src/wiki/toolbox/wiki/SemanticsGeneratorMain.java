@@ -141,11 +141,12 @@ public class SemanticsGeneratorMain implements Runnable{
 			{
 				String[] sample = samples[s];
 				String label = labels[s];
+				FileWriter out = null;
 				try {					
 					File f = new File(cfg.out_path+"/"+label+"/"+sample[1]);
 					if(f.exists()==true && f.length()>0)
 						continue;
-					FileWriter out = new FileWriter(f);
+					out = new FileWriter(f);
 					if(f.exists()) {
 						String semantics = "";
 						if(cfg.debug==true)
@@ -160,13 +161,14 @@ public class SemanticsGeneratorMain implements Runnable{
 										if(cfg.write_content)
 											semantics += sample[2] + cfg.semantics_separator;
 										
-								        SimpleOrderedMap<Object> obj = (SimpleOrderedMap<Object>)semanticConceptsInfo.getVal(i);
+										SimpleOrderedMap<Object> obj = (SimpleOrderedMap<Object>)semanticConceptsInfo.getVal(i);
 								        semantics += semanticConceptsInfo.getName(i);
 								        if(cfg.write_sem_ids)
 								        	semantics += cfg.semantics_separator + obj.get("docno");
 								        if(cfg.write_weights)
 								        	semantics += cfg.semantics_separator + obj.get("weight");
-								        
+								        if(cfg.write_cats)
+								        	semantics += cfg.semantics_separator + obj.get("cats");
 								        semantics += cfg.file_separator;
 								        }
 									out.write(semantics);
@@ -181,17 +183,28 @@ public class SemanticsGeneratorMain implements Runnable{
 							        semantics += semanticConceptsInfo.getName(i)+cfg.semantics_separator;
 							        if(cfg.write_weights)
 							        	semantics += obj.get("weight")+cfg.semantics_separator;
+							        if(cfg.write_cats)
+							        	semantics += obj.get("cats")+cfg.semantics_separator;
 								}
 								out.write(semantics);
 							}										
 						}
 						out.close();
 					}
-					else
+					else {
+						out.close();
 						System.out.println("Can't create output file for "+sample[1]);
+					}
 				} catch (IOException e) {
 					// TODO Auto-generated catch block				
 					e.printStackTrace();
+					if(out!=null)
+						try {
+							out.close();
+						} catch (IOException e1) {
+							// TODO Auto-generated catch block
+							e1.printStackTrace();
+						}
 				}
 			}
 		}
@@ -300,6 +313,7 @@ public class SemanticsGeneratorMain implements Runnable{
 				+ "[--relax-disambig [on/off]] "
 				+ "[--relax-categories [on/off]] "
 				+ "[--wikiurl wiki-index-url] "
-				+ "[--write-ids [on/off]] ");
+				+ "[--write-categories [on/off]] "
+				+ "[--write-ids [on/off]]");
 	}
 }

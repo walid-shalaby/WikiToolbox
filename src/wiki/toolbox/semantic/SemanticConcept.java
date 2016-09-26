@@ -13,11 +13,12 @@ public class SemanticConcept implements Comparable<SemanticConcept> {
   public int asso_cnt = 0;
   public Enums.ENUM_CONCEPT_TYPE e_concept_type = Enums.ENUM_CONCEPT_TYPE.e_UNKNOWN;
   public int ignore = 0;
+  public String cats = ""; // categories
     
   public SemanticConcept() {    
   }
   
-  public SemanticConcept(String name, CachedConceptInfo cachedInfo, String ne, float w, 
+  public SemanticConcept(String name, CachedConceptInfo cachedInfo, String ne, String cats, float w, 
     int id, int parent_id, int asso, Enums.ENUM_CONCEPT_TYPE type, float w2) {
     this.name = name;
     this.cachedInfo = cachedInfo;
@@ -28,6 +29,7 @@ public class SemanticConcept implements Comparable<SemanticConcept> {
     this.id = id;
     this.parent_id = parent_id;
     this.asso_cnt = asso;
+    this.cats = cats;
   }
 
   public SemanticConcept(SemanticConcept c) {
@@ -35,10 +37,12 @@ public class SemanticConcept implements Comparable<SemanticConcept> {
     this.cachedInfo = c.cachedInfo;
     ner = c.ner;
     weight = c.weight;
+    weight2 = c.weight2;
     e_concept_type = c.e_concept_type;
     this.id = c.id;
     this.parent_id = c.parent_id;
     this.asso_cnt = c.asso_cnt;
+    this.cats = cats;
   }
 
   @Override
@@ -78,6 +82,7 @@ public class SemanticConcept implements Comparable<SemanticConcept> {
     conceptInfo.add("ignore", ignore);
     conceptInfo.add("anchors", cachedInfo.anchors);
     conceptInfo.add("redirects", cachedInfo.redirects);
+    conceptInfo.add("cats", cats);
     
     return conceptInfo;
   }

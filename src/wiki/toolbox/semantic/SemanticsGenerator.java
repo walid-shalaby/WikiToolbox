@@ -246,6 +246,9 @@ public class SemanticsGenerator {
      */
     concept = QueryParser.escape(concept.toLowerCase().replace(" not ", " \\not ").replace(" or ", " \\or ").replace(" and ", " \\and "));
     
+    if(params.quoted_search==true)
+    	concept = "\"" + concept + "\"";
+    
     // retrieve related concepts
     String filterQueryString = "title_ngrams:[0 TO "+String.format("%d", params.hidden_max_title_ngrams)+"] "
         + "AND length:["+String.format("%d", params.hidden_min_wiki_length)+" TO *]";
@@ -270,7 +273,7 @@ public class SemanticsGenerator {
     conceptsQParams.set(CommonParams.ROWS, params.hidden_max_hits);
     
     // add target extract field
-    conceptsQParams.set("fl", new String[]{"score","title","anchor","seealso","seealso_ngrams","pagerank"});
+    conceptsQParams.set("fl", new String[]{"score","title","anchor","seealso","seealso_ngrams","pagerank","category"});
     QueryResponse conceptsQResp;
     try {
       conceptsQResp = server.query(conceptsQParams);
@@ -292,6 +295,18 @@ public class SemanticsGenerator {
           	pagerank = ((Double) obj).floatValue();          
           String ner = "";
           /*HEREHERE*///String ner = indexReader.document(hits[i].doc).getField("title_ne").stringValue();/*HEREHERE*/
+          
+          String cats = "";
+          if(params.write_cats==true) {
+	          Collection<Object> catsValues = doc.getFieldValues("category");
+	          if(catsValues!=null) {
+	            Object[] catsArr = catsValues.toArray();
+	            for(int t=0; t<catsArr.length; t++) {
+	              cats += (String) catsArr[t] + "\t";
+	            }
+	          }
+          }
+          
           CachedConceptInfo cachedInfo = null;
           CachedAssociationInfo cachedAssoInfo = null;
           
@@ -316,11 +331,11 @@ public class SemanticsGenerator {
               }
               if(cachedInfo!=null) {
             	  if(params.hidden_pagerank_weighting==false) {
-            		  sem = new SemanticConcept(title, cachedInfo, ner, score,
+            		  sem = new SemanticConcept(title, cachedInfo, ner, cats, score,
             				  cur_id, 0, 0, Enums.ENUM_CONCEPT_TYPE.e_TITLE, cachedInfo.pagerank);
             	  }
             	  else {
-            		  sem = new SemanticConcept(title, cachedInfo, ner, cachedInfo.pagerank,
+            		  sem = new SemanticConcept(title, cachedInfo, ner, cats, cachedInfo.pagerank,
             				  cur_id, 0, 0, Enums.ENUM_CONCEPT_TYPE.e_TITLE, score);
             	  }
                 cur_parent_id = cur_id;
@@ -373,11 +388,11 @@ public class SemanticsGenerator {
                   SemanticConcept sem = relatedConcepts.get(anchor);
                   if(sem==null) { // new concept                  
                 	  if(params.hidden_pagerank_weighting==false) {
-                		  sem = new SemanticConcept(anchor, cachedInfo, ner, score-0.0001f, 
+                		  sem = new SemanticConcept(anchor, cachedInfo, ner, "", score-0.0001f, 
                 				  cur_id, cur_parent_id, 0, Enums.ENUM_CONCEPT_TYPE.e_ANCHOR, cachedInfo.pagerank);
                       }
                 	  else {
-                		  sem = new SemanticConcept(anchor, cachedInfo, ner, cachedInfo.pagerank, 
+                		  sem = new SemanticConcept(anchor, cachedInfo, ner, "", cachedInfo.pagerank, 
                 				  cur_id, cur_parent_id, 0, Enums.ENUM_CONCEPT_TYPE.e_ANCHOR, score-0.0001f);
                 	  }
                     cur_id++;
@@ -522,141 +537,141 @@ public class SemanticsGenerator {
     }
   }
   
-  public HashMap<String, SemanticConcept> getSeeAlso(String concept, SemanticSearchConfigParams params) {
-	  HashMap<String, SemanticConcept> relatedConcepts = new HashMap<String, SemanticConcept>();
-	  CachedConceptInfo cachedInfo = cachedConceptsInfo.get(concept);
-	  if(cachedInfo!=null) {
-	    // retrieve related concepts
-	    String queryString = "";
-	    queryString += "id:"+cachedInfo.docno;
-	    
-	    if(params.debug==true)
-	    	System.out.println("Query: "+ queryString);
-	    
-	    HttpSolrServer server = new HttpSolrServer(params.wikiUrl);
-	    ModifiableSolrParams conceptsQParams = new ModifiableSolrParams();
-	    conceptsQParams.set(CommonParams.Q, queryString);
-	    conceptsQParams.set("defType","edismax");
-	    conceptsQParams.set(CommonParams.ROWS, 1);
-	    
-	    // add target extract field
-	    conceptsQParams.set("fl", new String[]{"score","title","anchor","seealso","seealso_ngrams","pagerank"});
-	    QueryResponse conceptsQResp;
-	    try {
-	      conceptsQResp = server.query(conceptsQParams);
-	    
-	      // loop on results and add to concepts
-	      SolrDocumentList results = conceptsQResp.getResults();
-	      if(results!=null && results.size()==1) {
-	        int cur_id = 1;
-	        int cur_parent_id = 0;	        
-	        
-	          SolrDocument doc = results.get(0);
-	          boolean relevant = false;
-	          String title = (String) doc.getFieldValue("title");
-	          if(title.equals(concept)){
-		          float score = ((Float) doc.getFieldValue("score")).floatValue();
-		          Object obj = doc.getFieldValue("pagerank");
-		          float pagerank = 0;
-		          if(obj!=null)
-		          	pagerank = ((Double) obj).floatValue();          
-		          String ner = "";
-		          /*HEREHERE*///String ner = indexReader.document(hits[i].doc).getField("title_ne").stringValue();/*HEREHERE*/
-		          CachedAssociationInfo cachedAssoInfo = null;
-		          
-		          //System.out.println(title.stringValue());
-		          // check if relevant concept
-		          boolean relevantTitle = true;//TODO: do we need to call isRelevantConcept(f.stringValue());
-		          if(relevantTitle==true) {
-		            relevant = true;            
-		                           
-	                // get its associations
-	                if(params.e_Method!=Enums.ENUM_SEMANTIC_METHOD.e_MSA && 
-	                    params.e_Method!=Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS) {
-	                  Integer I = titleIntMapping.get(title);
-	                  if(I!=null) {
-	                    cachedAssoInfo = cachedAssociationsInfo.get(I);
-	                  }
-	                  else {
-	                	  //if(params.debug==true)
-	                	  System.out.println(title+"...title not in mappings!");
-	                  }
-	                }      
-		          }
-		          else {
-		        	  if(params.debug==true)
-		        		  System.out.println(title+"...title not relevant!");
-		          }
-//		          if(relevant==true && (params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS || 
-//		                  params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS_SEE_ALSO || 
-//		                      params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS_SEE_ALSO_ASSO)) // retrieve anchors
-//		          {
-//		            relevant = false;
-//		            Collection<Object> anchorValues = doc.getFieldValues("anchor");
-//		            if(anchorValues!=null) {
-//		              Object[] anchors = anchorValues.toArray();
-//		              for(int t=0; t<anchors.length; t++) {
-//		                String anchor = (String) anchors[t];
-//		                //System.out.println(f.stringValue());
-//		                // check if relevant concept
-//		                relevantTitle = true;//TODO: do we need to call isRelevantConcept(f.stringValue());
-//		                if(relevantTitle==true) {
-//		                  relevant = true;
-//		                  
-//		                  // check if already there
-//		                  SemanticConcept sem = relatedConcepts.get(anchor);
-//		                  if(sem==null) { // new concept                  
-//		                	  if(params.hidden_pagerank_weighting==false) {
-//		                		  sem = new SemanticConcept(anchor, cachedInfo, ner, score-0.0001f, 
-//		                				  cur_id, cur_parent_id, 0, Enums.ENUM_CONCEPT_TYPE.e_ANCHOR, cachedInfo.pagerank);
-//		                      }
-//		                	  else {
-//		                		  sem = new SemanticConcept(anchor, cachedInfo, ner, cachedInfo.pagerank, 
-//		                				  cur_id, cur_parent_id, 0, Enums.ENUM_CONCEPT_TYPE.e_ANCHOR, score-0.0001f);
-//		                	  }
-//		                    cur_id++;
-//		                  }
-//		                  else { // existing concept, update its weight to higher weight
-//		                    cachedInfo = sem.cachedInfo;
-//		                    if(params.hidden_pagerank_weighting==false) {
-//		                    	sem.weight = sem.weight>score-0.0001f?sem.weight:score-0.0001f;
-//		                    }
-//		                  }
-//		                  if(sem!=null)
-//		                    relatedConcepts.put(sem.name, sem);                
-//		                }
-//		                else {
-//		                	if(params.debug==true)
-//		                		System.out.println(anchor+"...title not relevant!");
-//		                }
-//		              }
+//  public HashMap<String, SemanticConcept> getSeeAlso(String concept, SemanticSearchConfigParams params) {
+//	  HashMap<String, SemanticConcept> relatedConcepts = new HashMap<String, SemanticConcept>();
+//	  CachedConceptInfo cachedInfo = cachedConceptsInfo.get(concept);
+//	  if(cachedInfo!=null) {
+//	    // retrieve related concepts
+//	    String queryString = "";
+//	    queryString += "id:"+cachedInfo.docno;
+//	    
+//	    if(params.debug==true)
+//	    	System.out.println("Query: "+ queryString);
+//	    
+//	    HttpSolrServer server = new HttpSolrServer(params.wikiUrl);
+//	    ModifiableSolrParams conceptsQParams = new ModifiableSolrParams();
+//	    conceptsQParams.set(CommonParams.Q, queryString);
+//	    conceptsQParams.set("defType","edismax");
+//	    conceptsQParams.set(CommonParams.ROWS, 1);
+//	    
+//	    // add target extract field
+//	    conceptsQParams.set("fl", new String[]{"score","title","anchor","seealso","seealso_ngrams","pagerank"});
+//	    QueryResponse conceptsQResp;
+//	    try {
+//	      conceptsQResp = server.query(conceptsQParams);
+//	    
+//	      // loop on results and add to concepts
+//	      SolrDocumentList results = conceptsQResp.getResults();
+//	      if(results!=null && results.size()==1) {
+//	        int cur_id = 1;
+//	        int cur_parent_id = 0;	        
+//	        
+//	          SolrDocument doc = results.get(0);
+//	          boolean relevant = false;
+//	          String title = (String) doc.getFieldValue("title");
+//	          if(title.equals(concept)){
+//		          float score = ((Float) doc.getFieldValue("score")).floatValue();
+//		          Object obj = doc.getFieldValue("pagerank");
+//		          float pagerank = 0;
+//		          if(obj!=null)
+//		          	pagerank = ((Double) obj).floatValue();          
+//		          String ner = "";
+//		          /*HEREHERE*///String ner = indexReader.document(hits[i].doc).getField("title_ne").stringValue();/*HEREHERE*/
+//		          CachedAssociationInfo cachedAssoInfo = null;
+//		          
+//		          //System.out.println(title.stringValue());
+//		          // check if relevant concept
+//		          boolean relevantTitle = true;//TODO: do we need to call isRelevantConcept(f.stringValue());
+//		          if(relevantTitle==true) {
+//		            relevant = true;            
+//		                           
+//	                // get its associations
+//	                if(params.e_Method!=Enums.ENUM_SEMANTIC_METHOD.e_MSA && 
+//	                    params.e_Method!=Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS) {
+//	                  Integer I = titleIntMapping.get(title);
+//	                  if(I!=null) {
+//	                    cachedAssoInfo = cachedAssociationsInfo.get(I);
+//	                  }
+//	                  else {
+//	                	  //if(params.debug==true)
+//	                	  System.out.println(title+"...title not in mappings!");
+//	                  }
+//	                }      
+//		          }
+//		          else {
+//		        	  if(params.debug==true)
+//		        		  System.out.println(title+"...title not relevant!");
+//		          }
+////		          if(relevant==true && (params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS || 
+////		                  params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS_SEE_ALSO || 
+////		                      params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS_SEE_ALSO_ASSO)) // retrieve anchors
+////		          {
+////		            relevant = false;
+////		            Collection<Object> anchorValues = doc.getFieldValues("anchor");
+////		            if(anchorValues!=null) {
+////		              Object[] anchors = anchorValues.toArray();
+////		              for(int t=0; t<anchors.length; t++) {
+////		                String anchor = (String) anchors[t];
+////		                //System.out.println(f.stringValue());
+////		                // check if relevant concept
+////		                relevantTitle = true;//TODO: do we need to call isRelevantConcept(f.stringValue());
+////		                if(relevantTitle==true) {
+////		                  relevant = true;
+////		                  
+////		                  // check if already there
+////		                  SemanticConcept sem = relatedConcepts.get(anchor);
+////		                  if(sem==null) { // new concept                  
+////		                	  if(params.hidden_pagerank_weighting==false) {
+////		                		  sem = new SemanticConcept(anchor, cachedInfo, ner, score-0.0001f, 
+////		                				  cur_id, cur_parent_id, 0, Enums.ENUM_CONCEPT_TYPE.e_ANCHOR, cachedInfo.pagerank);
+////		                      }
+////		                	  else {
+////		                		  sem = new SemanticConcept(anchor, cachedInfo, ner, cachedInfo.pagerank, 
+////		                				  cur_id, cur_parent_id, 0, Enums.ENUM_CONCEPT_TYPE.e_ANCHOR, score-0.0001f);
+////		                	  }
+////		                    cur_id++;
+////		                  }
+////		                  else { // existing concept, update its weight to higher weight
+////		                    cachedInfo = sem.cachedInfo;
+////		                    if(params.hidden_pagerank_weighting==false) {
+////		                    	sem.weight = sem.weight>score-0.0001f?sem.weight:score-0.0001f;
+////		                    }
+////		                  }
+////		                  if(sem!=null)
+////		                    relatedConcepts.put(sem.name, sem);                
+////		                }
+////		                else {
+////		                	if(params.debug==true)
+////		                		System.out.println(anchor+"...title not relevant!");
+////		                }
+////		              }
+////		            }
+////		          }
+//		          
+//		          //System.out.println();
+//		          if(params.hidden_relax_see_also==false || relevant) {
+//		            // force see also is enabled OR,
+//		            // the original title or one of its anchors is relevant
+//		            // in this case we can add its see_also
+//		            if(params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_SEE_ALSO || 
+//		                params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS_SEE_ALSO) { // add See also to the hit list
+//		            	IntegerWrap Cur_Id = new IntegerWrap(1);
+//		            	getSeeAlso(doc, cachedAssoInfo, score, Cur_Id, 0, relatedConcepts, params);
 //		            }
 //		          }
-		          
-		          //System.out.println();
-		          if(params.hidden_relax_see_also==false || relevant) {
-		            // force see also is enabled OR,
-		            // the original title or one of its anchors is relevant
-		            // in this case we can add its see_also
-		            if(params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_SEE_ALSO || 
-		                params.e_Method==Enums.ENUM_SEMANTIC_METHOD.e_MSA_ANCHORS_SEE_ALSO) { // add See also to the hit list
-		            	IntegerWrap Cur_Id = new IntegerWrap(1);
-		            	getSeeAlso(doc, cachedAssoInfo, score, Cur_Id, 0, relatedConcepts, params);
-		            }
-		          }
-	          }	        
-	      }
-	      else {
-	    	  if(params.debug==true)
-	    		  System.out.println("No semantic results found :(");
-	      }
-	    } catch (SolrServerException e) {
-	    	System.out.println("Error executing query: "+queryString);
-	    	e.printStackTrace();      
-	    }
-	  }
-	  return relatedConcepts;
-  }
+//	          }	        
+//	      }
+//	      else {
+//	    	  if(params.debug==true)
+//	    		  System.out.println("No semantic results found :(");
+//	      }
+//	    } catch (SolrServerException e) {
+//	    	System.out.println("Error executing query: "+queryString);
+//	    	e.printStackTrace();      
+//	    }
+//	  }
+//	  return relatedConcepts;
+//  }
   
   private void getSeeAlso(SolrDocument doc, CachedAssociationInfo cachedAssoInfo, 
 		  float score, IntegerWrap Cur_Id, int cur_parent_id, 
@@ -725,13 +740,13 @@ public class SemanticsGenerator {
                         (params.hidden_min_confidence<0.00001 && asso_cnt>=params.hidden_min_asso_cnt))) { // support > minimum support
                     	if(params.hidden_pagerank_weighting==false) { 
                     		sem = new SemanticConcept(seealso, 
-                    				cachedInfo, ""/*HEREHERE*//*(String)multiSeeAlsoNE[s]*//*HEREHERE*/, 
+                    				cachedInfo, ""/*HEREHERE*//*(String)multiSeeAlsoNE[s]*//*HEREHERE*/, "", 
                     				score-0.0002f, Cur_Id.value, cur_parent_id, asso_cnt, Enums.ENUM_CONCEPT_TYPE.e_SEE_ALSO, 
                     				cachedInfo.pagerank);
                     	}
                     	else {
                     		sem = new SemanticConcept(seealso, 
-                    				cachedInfo, ""/*HEREHERE*//*(String)multiSeeAlsoNE[s]*//*HEREHERE*/, 
+                    				cachedInfo, ""/*HEREHERE*//*(String)multiSeeAlsoNE[s]*//*HEREHERE*/, "", 
                     				cachedInfo.pagerank, Cur_Id.value, cur_parent_id, asso_cnt, Enums.ENUM_CONCEPT_TYPE.e_SEE_ALSO, 
                     				score-0.0002f);
                     	}
@@ -806,12 +821,12 @@ public class SemanticsGenerator {
 	                  if(cachedInfo.length==0 || cachedInfo.length>=params.hidden_min_seealso_length) { 
 	                	  if(params.hidden_pagerank_weighting==false) {
 	                    	  sem = new SemanticConcept(assoStr,
-	                    			  cachedInfo, "M", score-0.0002f, Cur_Id.value, cur_parent_id, assos[1], 
+	                    			  cachedInfo, "M", "", score-0.0002f, Cur_Id.value, cur_parent_id, assos[1], 
 	                    			  Enums.ENUM_CONCEPT_TYPE.e_SEE_ALSO, cachedInfo.pagerank);
 	                	  }
 	                	  else {
 	                		  sem = new SemanticConcept(assoStr,
-	                    			  cachedInfo, "M", cachedInfo.pagerank, Cur_Id.value, cur_parent_id, 
+	                    			  cachedInfo, "M", "", cachedInfo.pagerank, Cur_Id.value, cur_parent_id, 
 	                    			  assos[1], Enums.ENUM_CONCEPT_TYPE.e_SEE_ALSO, score-0.0002f);
 	                	  }
 	                    int parent_id = Cur_Id.value;
@@ -1298,10 +1313,11 @@ public class SemanticsGenerator {
     
     if(params.hidden_relatedness_experiment==true) {
       // open concepts file and loop on concepts
-      BufferedReader in;
+      BufferedReader in = null;
+      FileWriter out = null;
       try {
         in = new BufferedReader(new FileReader(params.in_path));
-        FileWriter out = new FileWriter(params.out_path);
+        out = new FileWriter(params.out_path);
         if(in!=null && out!=null) {
           String line;        
           line = in.readLine();
@@ -1331,6 +1347,20 @@ public class SemanticsGenerator {
         }
       } catch (IOException e) {
         e.printStackTrace();
+        if(in!=null)
+			try {
+				in.close();
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
+        if(in!=null)
+			try {
+				out.close();
+			} catch (IOException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}        
       }
     }
     else {

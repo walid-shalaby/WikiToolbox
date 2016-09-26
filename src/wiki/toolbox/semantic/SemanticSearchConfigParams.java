@@ -14,7 +14,8 @@ public class SemanticSearchConfigParams {
 	public boolean enable_title_search = false;
 	public boolean row_based = false;	
 	public boolean write_weights = false;
-	public boolean write_content = false;	
+	public boolean write_content = false;
+	public boolean quoted_search = false;
 	public boolean enable_search_all = false;
 	public boolean enable_show_records = false;
 	public boolean enable_search_title = false;
@@ -59,6 +60,7 @@ public class SemanticSearchConfigParams {
 	public String semantics_separator = "\t";
 	public String file_separator = ",";
 	public boolean write_ids = false;
+	public boolean write_cats = false;
 	public boolean write_sem_ids = false;
 	public String hidden_wiki_search_field = "alltext";
 	public String hidden_wiki_extra_query = "AND NOT title:list* AND NOT title:index* AND NOT title:*disambiguation*";
@@ -186,6 +188,12 @@ public class SemanticSearchConfigParams {
 				else
 					write_ids = false;
 			}
+			else if(opts[i].compareToIgnoreCase("--write-categories")==0 && ++i<opts.length) {
+				if(opts[i].compareToIgnoreCase("on")==0)
+					write_cats = true;
+				else
+					write_cats = false;
+			}
 			else if(opts[i].compareToIgnoreCase("--title-search")==0 && ++i<opts.length) {
 				if(opts[i].compareToIgnoreCase("on")==0)
 					enable_title_search = true;
@@ -269,6 +277,12 @@ public class SemanticSearchConfigParams {
 					hidden_relax_categories = true;
 				else
 					hidden_relax_categories = false;
+			}
+			else if(opts[i].compareToIgnoreCase("--quoted-search")==0 && ++i<opts.length) {
+				if(opts[i].compareToIgnoreCase("on")==0)
+					quoted_search = true;
+				else
+					quoted_search = false;
 			}/*
 			else if(opts[i].compareToIgnoreCase("--title-search")==0) {
 				enableTitleSearch = true;
